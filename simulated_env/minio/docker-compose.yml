@@ -1,0 +1,39 @@
+version: '3'
+services:
+  minio:
+    container_name: llm-minio
+    image: 'bitnami/minio:2023.11.1'
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    environment:
+      - TZ=Asia/Taipei
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=admin123
+    volumes:
+      - minio_data:/bitnami/minio/data
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - aivex
+  mc:
+    image: minio/mc:RELEASE.2024-01-28T16-23-14Z-cpuv1
+    networks:
+      - aivex
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin admin123;
+      /usr/bin/mc mb myminio/llm-graph-bucket;
+      set +o history;
+      /usr/bin/mc admin user add myminio backsys minio123;
+      set -o history;
+      /usr/bin/mc admin policy attach myminio readwrite --user=backsys;
+      exit 0;
+      "
+volumes:
+  minio_data:
+networks:
+  aivex:
+    name: aivex-network

@@ -1,0 +1,25 @@
+version: '3'
+services:
+  rabbitmq:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rabbitmq:3.12.8-management
+    container_name: llm-rabbitmq
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - aivex
+    environment:
+      - TZ=Asia/Taipei
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-guest}
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-user123}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+networks:
+  aivex:
+    name: aivex-network

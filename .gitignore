@@ -1,0 +1,5 @@
+*.pyc
+upload_files/**
+**/logs/**
+.env
+*.DS_Store

@@ -1,0 +1,37 @@
+version: "3"
+
+services:
+  # Database instance
+  mssql:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: mssql
+    volumes:
+      - events_mssql_single:/var/opt/mssql
+    ports:
+      - 1433:1433
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Passw@rd
+      - MSSQL_PID=Developer
+      - MSSQL_DB=events_service
+      - MSSQL_USER=SA
+      - MSSQL_PASSWORD=Passw@rd
+      - MSSQL_DB_AUDIT_LOG=events_service_audit_log
+    networks:
+      - aivex
+  mssql-cmd:
+    image: fabiang/go-sqlcmd
+    depends_on:
+      - mssql
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      /usr/local/bin/sqlcmd -S mssql -U sa -P Passw@rd -Q 'CREATE DATABASE ACP;'
+      " 
+    networks:
+      - aivex
+volumes:
+  events_mssql_single:
+networks:
+  aivex:
+    name: aivex-network
