@@ -1,13 +1,14 @@
 ## envriment:
    * 請複製 .env.sample 為 .env
    * 設置所有變數
+   * Python 3.12 版 (或以上-自行測試)
 
 ## 啟動應用
    * 啟動完整應用前，應備妥 Minio、RabbitMQ、MSSQL、Neo4j等週邊服務
    * 若只是要開發，可以快速 至 simulated_env/* 底下 啟動相關周邊服務(需搭配docker-compose)
    * 啟動服務指令:
       ```sh
-      dotenv run -- python chat_agent.py
+      dotenv run -- python chat_agent.py &
       dotenv run -- python rabbitmq_consumer.py &
       dotenv run -- gunicorn -w 5 -b 0.0.0.0:6000 app:app
       ```

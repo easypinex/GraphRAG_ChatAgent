@@ -3,3 +3,5 @@ upload_files/**
 **/logs/**
 .env
 *.DS_Store
+simulated_env/neo4j/data/**
+!simulated_env/neo4j/data/__init__
