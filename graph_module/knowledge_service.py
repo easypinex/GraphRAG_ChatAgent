@@ -24,6 +24,7 @@ from langchain_community.graphs.graph_document import (Document, GraphDocument,
                                                        Node, Relationship)
 
 from prompts.prompts import COMMNUITY_SUMMARY_SYSTEM, PROMPT_FIND_DUPLICATE_NODES_SYSTEM, PROMPT_FIND_DUPLICATE_NODES_USER
+import pandas as pd
 
 class KnowledgeService:
     class PotentialDuplicateNodeDict(TypedDict):
@@ -294,22 +295,37 @@ class KnowledgeService:
             os.environ[ "NEO4J_URI" ], 
             auth=(os.environ[ "NEO4J_USERNAME" ], os.environ[ "NEO4J_PASSWORD" ]) 
         )
+        # 查詢節點數據
+        node_query = """
+        MATCH (n:__Entity__)
+        RETURN n.uuid_hash AS nodeId
+        """
+        nodes_result = self.graph.query(node_query)
+
+        # 查詢關係數據
+        relationship_query = """
+        MATCH (n:__Entity__)-[r]-(m:__Chunk__)
+        WITH n, m, type(r) AS relationshipType, COUNT(r) AS connectionCount
+        RETURN n.uuid_hash AS sourceNodeId, 
+            id(m) AS targetNodeId, 
+            relationshipType, 
+            connectionCount AS weight
+        """
+        relationships_result = self.graph.query(relationship_query)
+
+        # 將結果轉換為 Pandas DataFrame
+        nodes = pd.DataFrame(nodes_result)
+        relationships = pd.DataFrame(relationships_result)
         gds.graph.drop("communities")
-        G, result = gds.graph.project(
-            "communities",  #  Graph name
-            {
-                "__Entity__": {#  Node projection
-                    "properties": ["uuid_hash"]  # 映射使用自己儲存的 uuid_hash 屬性
-                }
-            },  
-            {
-                "_ALL_": {
-                    "type": "*",
-                    "orientation": "UNDIRECTED",
-                    "properties": {"weight": {"property": "*", "aggregation": "COUNT"}},
-                }
-            },
+        G = gds.graph.construct(
+            "communities",      # Graph name
+            nodes,           # One or more dataframes containing node data
+            relationships,    # One or more dataframes containing relationship data,
+            undirected_relationship_types=["*"]  # Set relationships as undirected
         )
+                
+        # node_props = gds.graph.nodeProperties("communities")
+        # print(node_props)
         wcc = gds.wcc.stats(G)
         # 進行 wcc 社群偵測/分群演算法
         # 將計算後的「社群資訊」寫入每個 __Entity__ 節點的 communities 屬性中, 可能會有多個社群
@@ -317,16 +333,31 @@ class KnowledgeService:
         #   0 可能代表最高層社群編號
         #   10 可能代表在更細分後層級的社群編號
         #   42 代表再細分一層後所屬的社群編號
-        gds.leiden.write(
+        communities_df = gds.leiden.stream(
             G,
-            writeProperty="communities",
+            # writeProperty="communities",
             includeIntermediateCommunities=True,
             relationshipWeightProperty="weight",
-            randomSeed=0,  # 設定隨機種子, 確保每次結果都一致
+            randomSeed=27,  # 設定隨機種子, 確保每次結果都一致
             concurrency=1, # 設定執行緒數量, 確保每次結果都一致
-            seedProperty='uuid_hash', # 使用自己儲存的 uuid_hash 屬性作為隨機種子, 以保證就算 Entity 被重新建立, 社群還是一樣
-                                        # 因為 內建應該是使用 <id> 當作隨機種子, 只要 Entity 被重新建立就會變動
         )
+        # 假設結果包含 nodeId 和 communityId 字段
+        # print(communities_df.head())
+
+        write_query = """
+        UNWIND $data AS row
+        MATCH (e:__Entity__ {uuid_hash: row.nodeId})
+        SET e.communities = COALESCE(e.communities, []) + row.communityId
+        """
+
+        # 構造參數列表
+        params = {
+            "data": communities_df.to_dict("records")
+        }
+
+        # 執行查詢
+        self.graph.query(write_query, params)
+
         
         # 建立 Community 節點, 並將 __Entity__ 節點與 Community 節點相連
         self.graph.query("""
@@ -463,9 +494,8 @@ class KnowledgeService:
         cached_struct_to_summary = {}
         for c in cached_commnuities_info:
             node_uuids = frozenset(node['uuid'] for node in c['nodes'])
-            rel_uuids = frozenset(rel['uuid'] for rel in c['rels'])
             summary = cached_summary_dict.get(c['communityId'], None)
-            cached_struct_to_summary[(node_uuids, rel_uuids)] = summary
+            cached_struct_to_summary[node_uuids] = summary
 
         result_summaries = []
         communities_to_summarize = []
@@ -474,10 +504,9 @@ class KnowledgeService:
         for community in communities_info:
             community_id = community['communityId']
             current_node_uuids = frozenset(node['uuid'] for node in community['nodes'])
-            current_rel_uuids = frozenset(rel['uuid'] for rel in community['rels'])
 
             # 嘗試從 cached 中取得 summary
-            key = (current_node_uuids, current_rel_uuids)
+            key = current_node_uuids
             if key in cached_struct_to_summary:
                 summary = cached_struct_to_summary.get(key)
                 # 有 cached summary 可以直接用

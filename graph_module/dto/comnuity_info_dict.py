@@ -28,8 +28,7 @@ def compare_community_lists(listA: list[Neo4jCommunityInfoDict], listB: list[Neo
     def extract_features(community: Neo4jCommunityInfoDict):
         # 從 community 中提取 node_uuids 與 rel_uuids 的集合
         node_uuids = frozenset(node["uuid"] for node in community["nodes"])
-        rel_uuids = frozenset(rel["uuid"] for rel in community["rels"])
-        return (node_uuids, rel_uuids)
+        return (node_uuids)
 
     # 將 listA 中的 community 特徵收集
     featuresA = Counter(extract_features(c) for c in listA)
@@ -81,7 +80,12 @@ def compare_community_lists(listA: list[Neo4jCommunityInfoDict], listB: list[Neo
                     "nodes": community["nodes"],
                     "rels": community["rels"]
                 })
-
+    def sort_func(x: list):
+        for y in x:
+            y['nodes'] = sorted(y['nodes'], key=lambda z: z['uuid'])
+            y['rels'] = sorted(y['rels'], key=lambda z: z['uuid'])
+    sort_func(differences['in_listA_not_in_listB'])
+    sort_func(differences['in_listB_not_in_listA'])
     return False, differences
 
 
