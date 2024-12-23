@@ -299,6 +299,7 @@ class KnowledgeService:
         node_query = """
         MATCH (n:__Entity__)
         RETURN n.uuid_hash AS nodeId
+        ORDER BY nodeId
         """
         nodes_result = self.graph.query(node_query)
 
@@ -310,6 +311,7 @@ class KnowledgeService:
             id(m) AS targetNodeId, 
             relationshipType, 
             connectionCount AS weight
+        ORDER BY sourceNodeId, targetNodeId
         """
         relationships_result = self.graph.query(relationship_query)
 
