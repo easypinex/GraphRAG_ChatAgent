@@ -164,7 +164,7 @@ class DataflowService:
         # 找出可能相似的節點 (使用 embedding + neo4j)
         similar_nodes: list[KnowledgeService.PotentialDuplicateNodeDict] = self._knowledge_service.findout_similar_nodes_rule_base()
         # 使用LLM確認是否真的為重複節點
-        duplicate_nodes: list[DuplicateInfoDict] = self._knowledge_service.delete_similar_nodes_with_cached_llm(similar_nodes, cached_duplicate_nodes)
+        duplicate_nodes: list[DuplicateInfoDict] = self._knowledge_service.determine_similar_nodes_with_cached_llm(similar_nodes, cached_duplicate_nodes)
         return duplicate_nodes
     
     def _merge_nodes(self, duplicate_nodes_info: list[DuplicateInfoDict]):

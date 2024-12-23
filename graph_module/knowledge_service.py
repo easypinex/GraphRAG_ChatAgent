@@ -115,7 +115,7 @@ class KnowledgeService:
             """, params={'distance': word_edit_distance})
         return potential_duplicate_candidates
     
-    def delete_similar_nodes_with_cached_llm(self, potential_duplicate_candidates: list[PotentialDuplicateNodeDict], 
+    def determine_similar_nodes_with_cached_llm(self, potential_duplicate_candidates: list[PotentialDuplicateNodeDict], 
                                                     cached_duplicate_nodes: list[DuplicateInfoDict]) -> list[DuplicateInfoDict]:
         if len(cached_duplicate_nodes) == 0:
             return self.determine_similar_nodes_with_llm(potential_duplicate_candidates)
