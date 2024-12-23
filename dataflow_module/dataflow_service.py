@@ -249,9 +249,12 @@ if __name__ == "__main__":
     #     json.dump(summaries, file, indent=4, ensure_ascii=False, sort_keys=True)
     # --------------------------------------------------------------------------
     # # 本地測試: 
-    communities_info1 = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
+    communities_info = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
+    with open('test/test_data/serialization/communities_info.json', 'r') as file:
+        cached_communities_info = json.load(file)
     with open('test/test_data/serialization/summaries.json', 'r') as file:
-        summaries = json.load(file)
+        cached_summaries = json.load(file)
+    summaries = test_dataflow_manager_instance._knowledge_service.summarize_commnuities_with_cached(communities_info, cached_communities_info, cached_summaries)
     test_dataflow_manager_instance._knowledge_service.save_summary(summaries)
     # --------------------------------------------------------------------------
     # # 本地測試: 如果需要, 重建知識 並且比對, 理論上會一樣

@@ -42,7 +42,7 @@ collect {
 // Entity - Report Mapping
 collect {
     UNWIND nodes as n
-    MATCH (n)-[:IN_COMMUNITY]->(c:__Community__)
+    MATCH (n)-[:IN_COMMUNITY*]->(c:__Community__)
     WHERE c.summary is not null
     WITH c, c.rank as rank, c.weight AS weight
     RETURN c.summary 

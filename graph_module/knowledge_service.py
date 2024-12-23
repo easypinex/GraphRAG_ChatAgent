@@ -342,6 +342,7 @@ class KnowledgeService:
             relationshipWeightProperty="weight",
             randomSeed=27,  # 設定隨機種子, 確保每次結果都一致
             concurrency=1, # 設定執行緒數量, 確保每次結果都一致
+            maxLevels=4
         )
         # 假設結果包含 nodeId 和 communityId 字段
         # print(communities_df.head())
@@ -397,19 +398,40 @@ class KnowledgeService:
         SET c.rank = rank;
         """)
         
+        # 儲存 Summary 的 weight (也就是儲存 chunk 數量)
+        self.graph.query(
+        """
+        MATCH (n:`__Community__`)<-[:IN_COMMUNITY]-()<-[:HAS_ENTITY]-(c)
+        WITH n, count(distinct c) AS chunkCount
+        SET n.weight = chunkCount"""
+        )
+        
         # 取得至少有兩個子節點(Entity)的社群(Community), 並回傳所有關聯
         communities_info = self.graph.query("""
-        MATCH (c:`__Community__`)<-[:IN_COMMUNITY*]-(e:__Entity__)
-        WITH c, collect(e ) AS nodes
-        WHERE size(nodes) > 1 and c.summary is null
-        CALL apoc.path.subgraphAll(nodes[0], {
-        whitelistNodes:nodes
-        })
-        YIELD relationships
-        RETURN c.id AS communityId, 
-            [n in nodes | apoc.map.removeKeys(n{.*, type: [el in labels(n) WHERE el <> '__Entity__'][0]}, ['embedding', 'wcc', 'communities'])] AS nodes,
-            [r in relationships | {start: startNode(r).id, type: type(r), end: endNode(r).id, description: r.description, uuid: r.uuid}] AS rels
-        """)
+        MATCH (c:__Community__)<-[:IN_COMMUNITY*]-(e:__Entity__)
+            // 由於前面只有最大4個層級, 因此只準備建立前兩層與最後一層的總結
+            WHERE c.level IN [0,1,3]
+            WITH c, collect(e ) AS nodes
+            WHERE size(nodes) > 1 and c.summary is null
+            
+            // 检查是否存在父社区拥有相同的节点
+            WITH c, nodes
+            WHERE NOT EXISTS {
+                MATCH (c:__Community__)<-[:IN_COMMUNITY]-(parent:__Community__)
+                MATCH (parent)<-[:IN_COMMUNITY*]-(pe:__Entity__)
+                WITH parent, collect(pe) AS parent_nodes, nodes
+                WHERE size(parent_nodes) = size(nodes)
+            }
+
+            CALL apoc.path.subgraphAll(nodes[0], {
+                whitelistNodes:nodes
+            })
+            YIELD relationships
+            RETURN c.id AS communityId, 
+                [n in nodes | apoc.map.removeKeys(n{.*, type: [el in labels(n) WHERE el <> '__Entity__'][0]}, ['embedding', 'wcc', 'communities'])] AS nodes,
+                [r in relationships | {start: startNode(r).id, type: type(r), end: endNode(r).id, description: r.description, uuid: r.uuid}] AS rels
+            """)
+        
         return communities_info
         
     def summarize_commnuities_with_cached(
@@ -593,14 +615,6 @@ class KnowledgeService:
         MERGE (c:__Community__ {id:row.community})
         SET c.summary = row.summary
         """, params={"data": summaries})
-        
-        # 儲存 Summary 的 weight (也就是儲存 chunk 數量)
-        self.graph.query(
-        """
-        MATCH (n:`__Community__`)<-[:IN_COMMUNITY]-()<-[:HAS_ENTITY]-(c)
-        WITH n, count(distinct c) AS chunkCount
-        SET n.weight = chunkCount"""
-        )
         
     def combine_description_list(self, split_str="\n---\n"):
         # 將 Entity 的 description 如果是陣列, 轉成字串 (因為 Entity 可能有多個來源來自不同的Chunk描述)
