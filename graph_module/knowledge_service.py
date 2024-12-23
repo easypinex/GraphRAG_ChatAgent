@@ -22,7 +22,7 @@ import time
 from langchain_community.graphs.graph_document import (GraphDocument)
 from langchain_community.graphs.graph_document import (Document, GraphDocument,
                                                        Node, Relationship)
-
+from langchain_community.graphs import Neo4jGraph
 from prompts.prompts import COMMNUITY_SUMMARY_SYSTEM, PROMPT_FIND_DUPLICATE_NODES_SYSTEM, PROMPT_FIND_DUPLICATE_NODES_USER
 import pandas as pd
 
@@ -31,7 +31,7 @@ class KnowledgeService:
         combinedResult: list[str]
     
     def __init__(self, graph, embedding, llm):
-        self.graph = graph
+        self.graph: Neo4jGraph = graph
         self.embedding = embedding
         self.llm = llm
         
@@ -279,7 +279,7 @@ class KnowledgeService:
         """, params={"data": merged_entities})
 
 
-    def build_community_from_neo4j(self) -> list[Neo4jCommunityInfoDict]:
+    def build_community_from_neo4j(self, max_commnuity_level: int = 4, include_commnuity_level: list[int] = [0]) -> list[Neo4jCommunityInfoDict]:
         """
         1. 透過 GDS library 將 Neo4j Graph 中的 __Entity__ 節點投影到 memory 中
         2. 進行社群偵測 WCC 演算法
@@ -342,7 +342,7 @@ class KnowledgeService:
             relationshipWeightProperty="weight",
             randomSeed=27,  # 設定隨機種子, 確保每次結果都一致
             concurrency=1, # 設定執行緒數量, 確保每次結果都一致
-            maxLevels=4
+            maxLevels=max_commnuity_level
         )
         # 假設結果包含 nodeId 和 communityId 字段
         # print(communities_df.head())
@@ -410,7 +410,7 @@ class KnowledgeService:
         communities_info = self.graph.query("""
         MATCH (c:__Community__)<-[:IN_COMMUNITY*]-(e:__Entity__)
             // 由於前面只有最大4個層級, 因此只準備建立前兩層與最後一層的總結
-            WHERE c.level IN [0,1,3]
+            WHERE c.level IN $include_commnuity_level
             WITH c, collect(e ) AS nodes
             WHERE size(nodes) > 1 and c.summary is null
             
@@ -430,7 +430,7 @@ class KnowledgeService:
             RETURN c.id AS communityId, 
                 [n in nodes | apoc.map.removeKeys(n{.*, type: [el in labels(n) WHERE el <> '__Entity__'][0]}, ['embedding', 'wcc', 'communities'])] AS nodes,
                 [r in relationships | {start: startNode(r).id, type: type(r), end: endNode(r).id, description: r.description, uuid: r.uuid}] AS rels
-            """)
+            """, params={"include_commnuity_level": include_commnuity_level})
         
         return communities_info
         
