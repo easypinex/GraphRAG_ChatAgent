@@ -347,7 +347,7 @@ class KnowledgeService:
         write_query = """
         UNWIND $data AS row
         MATCH (e:__Entity__ {uuid_hash: row.nodeId})
-        SET e.communities = COALESCE(e.communities, []) + row.communityId
+        SET e.communities = COALESCE(e.communities, []) + row.intermediateCommunityIds
         """
 
         # 構造參數列表
