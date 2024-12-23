@@ -46,7 +46,7 @@ collect {
     WHERE c.summary is not null
     WITH c, c.rank as rank, c.weight AS weight
     RETURN c.summary 
-    ORDER BY rank, weight DESC
+    ORDER BY rank DESC, weight DESC
     LIMIT $topCommunities
 } AS report_mapping,
 // Outside Relationships 
@@ -55,7 +55,7 @@ collect {
     MATCH (n)-[r]-(m) 
     WHERE NOT m IN nodes and r.description is not null
     RETURN {description: r.description, sources: r.sources} AS descriptionText
-    ORDER BY r.rank, r.weight DESC 
+    ORDER BY r.rank DESC, r.weight DESC 
     LIMIT $topOutsideRels
 } as outsideRels,
 // Inside Relationships 
@@ -64,7 +64,7 @@ collect {
     MATCH (n)-[r]-(m) 
     WHERE m IN nodes and r.description is not null
     RETURN {description: r.description, sources: r.sources} AS descriptionText
-    ORDER BY r.rank, r.weight DESC 
+    ORDER BY r.rank DESC, r.weight DESC 
     LIMIT $topInsideRels
 } as insideRels,
 // Entities description
