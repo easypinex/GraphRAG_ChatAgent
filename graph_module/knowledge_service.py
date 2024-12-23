@@ -419,70 +419,40 @@ class KnowledgeService:
         '''
         根據給定的社群資訊以及快取的社群結構與摘要來取得每個社群的摘要。
 
-        此函式會先嘗試使用已快取的社群結構與摘要, 以免LLM重複計算。
-        若發現目前的社群結構在快取中已有對應的摘要，則直接使用該摘要；
+        此函式會嘗試使用已快取的社群結構與摘要，以避免重複計算。
+        若發現目前的社群結構在快取中已有對應的摘要，則直接使用；
         否則透過 LLM 重新計算摘要。
 
         Args:
             communities_info (List[Neo4jCommunityInfoDict]): 
-                待產生摘要的社群資訊清單。
-                每個社群包含其 communityId、nodes、rels。
+                待產生摘要的社群資訊清單，每個社群包含 communityId 與 nodes。
             cached_commnuities_info (List[Neo4jCommunityInfoDict]): 
                 已快取的社群資訊清單，用於比對結構是否一致。
             cached_summaries (List[SummaryInfoDict]): 
-                已快取的社群摘要清單，透過 communityId 連結對應的摘要。
+                已快取的社群摘要清單，通過 communityId 連結對應的摘要。
 
         Returns:
             List[SummaryInfoDict]: 
-                一組與 communities_info 對應、包含每個社群摘要的清單。
-                每個元素都包含 "community" (communityId) 與 "summary" (摘要內容)。
+                與 communities_info 對應的社群摘要清單，每個元素包含 "community" (communityId) 與 "summary" (摘要內容)。
 
         時間複雜度:
             O((M + N) * K)，其中
             M 為 communities_info 的社群數量、
             N 為 cached_commnuities_info 的社群數量、
-            K 為平均每個社群的 nodes 與 rels 數量總和。
+            K 為平均每個社群的 nodes 數量。
 
         程式流程:
-            1. 將 cached_commnuities_info 和 cached_summaries 建立字典，以便快速查詢。
-            2. 根據每個 cached_commnuity 的 nodes 與 rels 建立結構特徵值 (兩組 frozenset) 做為 key。
-            3. 使用該特徵值 key 與 cached_summaries 建立一個從結構對應到摘要的索引字典 cached_struct_to_summary。
-            4. 對 communities_info 的每個社群，計算其 nodes 和 rels 的結構特徵值。
-                - 若在 cached_struct_to_summary 中找到對應的摘要，直接使用。
-                - 否則將該社群加入待重新計算清單。
-            5. 呼叫 summarize_with_llm 對待重新計算的社群進行摘要計算。
-            6. 將所有摘要組合後，依照 communities_info 的原始順序輸出。
+            1. 建立 cached_commnuities_info 與 cached_summaries 的查詢索引。
+            2. 使用每個 cached_commnuity 的 nodes UUIDs 建立結構特徵值 (frozenset) 作為索引鍵。
+            3. 對每個 communities_info 中的社群計算其 nodes 的結構特徵值。
+            - 若在快取中找到摘要，則直接使用。
+            - 否則將該社群加入待重新計算的清單。
+            4. 使用 summarize_with_llm 函式計算未快取的社群摘要。
+            5. 最後依照 communities_info 的順序輸出所有摘要。
 
         注意事項:
-            - 若快取中有結構相同的社群卻沒有摘要，則不會將其特徵值放入 cached_struct_to_summary，因此查詢時不會找到，也就會自動重新計算摘要。
-            - 假設社群 ID 為唯一且不變，但實際結構比對僅以 nodes 與 rels 的 UUID 來確定社群結構是否相同。
-        
-        
-        時間複雜度分析:
-            M 是 communities_info 的數量。
-            N 是 cached_commnuities_info 的數量。
-            每個社群(community)的 nodes 與 rels 數量加總為 K，也就是平均每個 community 建立 node_uuids 和 rel_uuids 集合的操作是 O(K) 時間。
-        步驟分析:
-            建立 cached_struct_to_summary 字典
-                我們會遍歷所有 cached_commnuities_info (N 個)。
-                對每個 community:
-                    建立一個 frozenset(node['uuid']) 和 frozenset(rel['uuid']) 的動作是 O(K)，因為要讀取並插入所有的 node 與 rel UUID。
-                    將結果存入字典為 O(1) 平均時間(hash 字典操作)。
-                    總計此步驟約為 O(N * K)。
-            在 communities_info 中查詢對應的 summary
-                遍歷 communities_info(M 個 community)。
-                對每個 community:
-                    同樣要建立 frozenset(node['uuid']) 與 frozenset(rel['uuid'])，O(K) 時間。
-                    使用 (node_uuids, rel_uuids) 查詢 cached_struct_to_summary 是 O(1) 平均時間。
-                    因此此步驟約為 O(M * K)。
-            對於需要重新計算的 communities 呼叫 summarize_with_llm
-                這段時間複雜度取決於 summarize_with_llm 的實作方式。若此部分複雜度為 O(M')（M' 為需重算的社群數量)，則總時間再加上 O(M' * ...)，但在此不列入具體分析，因為主要邏輯在於前兩步的查詢與匹配。
-
-        綜合來看，程式的主要邏輯時間複雜度約為:
-
-        建立快取索引階段:O(N * K)
-        查詢與匹配階段:O(M * K)
-        因此總時間複雜度為 O((M + N) * K)，加上後續 summarize_with_llm 的計算時間。
+            - 假設社群 ID 唯一且不變，但實際結構比對僅依據 nodes UUID。
+            - 若快取中有結構相同的社群但無摘要，則會重新計算摘要。
         '''
         if len(cached_commnuities_info) == 0 or len(cached_summaries) == 0:
             return self.summarize_with_llm(communities_info)
