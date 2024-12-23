@@ -240,21 +240,21 @@ if __name__ == "__main__":
     test_dataflow_manager_instance._merge_nodes(duplicate_nodes)
     g1 = test_dataflow_manager_instance._knowledge_service.get_all_graph()
     # --------------------------------------------------------------------------
-    # 需要LLM: 
-    # communities_info: list[Neo4jCommunityInfoDict] = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
-    # with open('test/test_data/serialization/communities_info.json', 'w') as file:
-    #     json.dump(communities_info, file, indent=4, ensure_ascii=False, sort_keys=True)
-    # summaries: list[SummaryInfoDict] = test_dataflow_manager_instance._knowledge_service.summarize_with_llm(communities_info)
+    # 根據結構決定是否需要LLM
+    # communities_info = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
+    # with open('test/test_data/serialization/communities_info.json', 'r') as file:
+    #     cached_communities_info = json.load(file)
+    # with open('test/test_data/serialization/summaries.json', 'r') as file:
+    #     cached_summaries = json.load(file)
+    # summaries = test_dataflow_manager_instance._knowledge_service.summarize_commnuities_with_cached(communities_info, cached_communities_info, cached_summaries)
     # with open('test/test_data/serialization/summaries.json', 'w') as file:
     #     json.dump(summaries, file, indent=4, ensure_ascii=False, sort_keys=True)
+    # test_dataflow_manager_instance._knowledge_service.save_summary(summaries)
     # --------------------------------------------------------------------------
-    # # 本地測試: 
+    # 直接使用地端資料建立Summaries
     communities_info = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
-    with open('test/test_data/serialization/communities_info.json', 'r') as file:
-        cached_communities_info = json.load(file)
     with open('test/test_data/serialization/summaries.json', 'r') as file:
-        cached_summaries = json.load(file)
-    summaries = test_dataflow_manager_instance._knowledge_service.summarize_commnuities_with_cached(communities_info, cached_communities_info, cached_summaries)
+        summaries = json.load(file)
     test_dataflow_manager_instance._knowledge_service.save_summary(summaries)
     # --------------------------------------------------------------------------
     # # 本地測試: 如果需要, 重建知識 並且比對, 理論上會一樣
