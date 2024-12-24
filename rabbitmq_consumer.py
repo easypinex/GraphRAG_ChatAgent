@@ -17,8 +17,12 @@ def main():
     rabbitmq_host = os.environ.get('RABBITMQ_HOST', 'localhost')
     rabbitmq_channel = os.environ.get('RABBITMQ_CHANNEL', 'llm_agent')
     rabbitmq_queue = os.environ.get('RABBITMQ_QUEUE', 'llm_agent')
-    
-    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbitmq_host))
+    rabbitmq_user = os.environ.get('RABBITMQ_USER', None)
+    rabbitmq_pass = os.environ.get('RABBITMQ_PASSWORD', None)
+    credentials = None
+    if rabbitmq_user and rabbitmq_user:
+        credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
+    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbitmq_host, credentials=credentials))
     channel = connection.channel()
     channel.queue_declare(queue=rabbitmq_channel)
 
