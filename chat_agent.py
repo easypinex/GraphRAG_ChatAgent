@@ -14,6 +14,7 @@ from langchain_core.output_parsers.string import StrOutputParser
 from fastapi import FastAPI
 from langserve import add_routes
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 from neo4j_module.twlf_neo4j_vector import TwlfNeo4jVector
 from prompts.prompts import QUESTION_HISTORY_PROMPT, QUESTION_PROMPT
@@ -196,6 +197,15 @@ add_routes(
     app,
     conversational_rag_chain
 )
+
+# 允許cors
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],          # 允許的來源列表
+    allow_methods=["*"],            # 允許的 HTTP 方法
+    allow_headers=["*"],            # 允許的 HTTP 標頭
+)
+
 
 if __name__ == "__main__":
     import uvicorn
