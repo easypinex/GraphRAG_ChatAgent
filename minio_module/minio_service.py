@@ -32,11 +32,10 @@ class MinioService:
         http_client = None
         secure = os.environ["MINIO_SECURE"].lower() == "true"
         if secure and not cert_verify:
-            ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-            http_client = urllib3.PoolManager(ssl_context=ssl_context)
+            http_client = urllib3.PoolManager(
+                cert_reqs='CERT_NONE',  # 不要求憑證
+                assert_hostname=False    # 不檢查主機名稱
+            )
         self._mini_client = MinioClient(endpoint=os.environ["MINIO_SERVER"], 
                                         access_key=os.environ["MINIO_ACCESS_KEY"], 
                                         secret_key=os.environ["MINIO_SECRET_KEY"], 
