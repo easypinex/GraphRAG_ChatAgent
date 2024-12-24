@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from aio_pika import connect_robust
+from dataflow_module.rabbitmq_connection import get_rabbitmq_connection
 from dataflow_module.rabbitmq_task import QueueTaskDict
 from dataflow_module.dataflow_service import dataflow_manager_instance
 from graph_module.dto.simple_graph import SimpleGraph
@@ -37,7 +37,7 @@ async def main():
     rabbitmq_url = os.environ.get("RABBITMQ_URL", "amqp://guest:guest@localhost/")
     rabbitmq_queue = os.environ.get('RABBITMQ_QUEUE', 'llm_agent')
 
-    connection = await connect_robust(rabbitmq_url, loop=asyncio.get_event_loop())
+    connection = await get_rabbitmq_connection()
 
     async with connection:
         channel = await connection.channel()
