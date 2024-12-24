@@ -36,6 +36,7 @@ class MinioService:
                 cert_reqs='CERT_NONE',  # 不要求憑證
                 assert_hostname=False    # 不檢查主機名稱
             )
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         self._mini_client = MinioClient(endpoint=os.environ["MINIO_SERVER"], 
                                         access_key=os.environ["MINIO_ACCESS_KEY"], 
                                         secret_key=os.environ["MINIO_SECRET_KEY"], 

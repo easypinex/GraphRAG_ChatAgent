@@ -17,7 +17,6 @@ from dto.flask_error import FlaskErrorDict
 from dataflow_module.rabbitmq_sender import publish_queue_message
 from dataflow_module.dataflow_service import dataflow_manager_instance
 from database import db_session
-from werkzeug.utils import secure_filename
 
 logger = get_logger()
 file_module = Blueprint('file_module', __name__)
@@ -42,9 +41,8 @@ def upload_files():
         if file.filename == '':
             file_ids.append(None)
             continue
-        
-        # 使用 secure_filename 保護文件名安全
-        filename = secure_filename(file.filename)
+
+        filename = file.filename
         
         # 檢查文件是否以 .pdf 結尾（不區分大小寫）
         if not filename.lower().endswith('.pdf'):
