@@ -1,6 +1,8 @@
 from enum import Enum
 import sys
 import os
+import ssl
+import urllib3
 
 from dataflow_module.rabbitmq_task import QueueTaskDict
 from graph_module.dto.comnuity_info_dict import Neo4jCommunityInfoDict
@@ -26,10 +28,20 @@ class MinioService:
         COMMUNITIES_INFO = "communities_info"
         
     def __init__(self):
+        cert_verify = os.getenv("MINIO_CERT_CERIFY", "true").lower() == "true"
+        http_client = None
+        if not cert_verify:
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            http_client = urllib3.PoolManager(ssl_context=ssl_context)
         self._mini_client = MinioClient(endpoint=os.environ["MINIO_SERVER"], 
                                         access_key=os.environ["MINIO_ACCESS_KEY"], 
                                         secret_key=os.environ["MINIO_SECRET_KEY"], 
-                                        secure=os.environ["MINIO_SECURE"].lower() == "true")
+                                        secure=os.environ["MINIO_SECURE"].lower() == "true",
+                                        http_client=http_client,
+                                        )
         self._bucket = os.environ["MINIO_BUCKET"]
         self._floder = "user_uploaded_file"
         
