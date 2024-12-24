@@ -24,7 +24,7 @@ def main():
     rabbitmq_ssl = os.getenv("RABBITMQ_SSL", "true").lower() == "true"
     ssl_options = None
     if rabbitmq_ssl:
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context = ssl.create_default_context()
         if not rabbitmq_cert_verify:
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
