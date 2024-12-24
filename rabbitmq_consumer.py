@@ -20,7 +20,7 @@ def main():
     rabbitmq_user = os.environ.get('RABBITMQ_USER', None)
     rabbitmq_pass = os.environ.get('RABBITMQ_PASSWORD', None)
     credentials = None
-    if rabbitmq_user and rabbitmq_user:
+    if rabbitmq_user and rabbitmq_pass:
         credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
     connection = pika.BlockingConnection(pika.ConnectionParameters(rabbitmq_host, credentials=credentials))
     channel = connection.channel()
