@@ -30,7 +30,8 @@ class MinioService:
     def __init__(self):
         cert_verify = os.getenv("MINIO_CERT_VERIFY", "true").lower() == "true"
         http_client = None
-        if not cert_verify:
+        secure = os.environ["MINIO_SECURE"].lower() == "true"
+        if secure and not cert_verify:
             ssl_context = ssl.create_default_context()
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
@@ -39,7 +40,7 @@ class MinioService:
         self._mini_client = MinioClient(endpoint=os.environ["MINIO_SERVER"], 
                                         access_key=os.environ["MINIO_ACCESS_KEY"], 
                                         secret_key=os.environ["MINIO_SECRET_KEY"], 
-                                        secure=os.environ["MINIO_SECURE"].lower() == "true",
+                                        secure=secure,
                                         http_client=http_client,
                                         )
         self._bucket = os.environ["MINIO_BUCKET"]
