@@ -204,56 +204,56 @@ if __name__ == "__main__":
     # file_path = os.path.join('test', 'test_data', '台灣人壽新住院醫療保險附約.pdf')
     # read_file_kwargs = None # 如果只想讀取特定幾頁可以用 read_file_kwargs={'pages': [1, 2]}
     # simple_graph: SimpleGraph = test_dataflow_manager_instance._process_file_to_graph(file_path, read_file_kwargs=read_file_kwargs)
-    # with open(f'{root_save_dir}/simple_graph.json', 'w') as file:
+    # with open(f'{root_save_dir}/simple_graph.json', 'w', encoding='utf-8') as file:
     #     json.dump(simple_graph.to_dict(), file, indent=4, ensure_ascii=False, sort_keys=True)
     # --------------------------------------------------------------------------
     # 本地測試: 讀取 SimpleGraph 反序列化, 並建立簡易圖, 並儲存至 Neo4j
-    with open('test/test_data/serialization/simple_graph.json', 'r') as file:
+    with open('test/test_data/serialization/simple_graph.json', 'r', encoding='utf-8') as file:
         simple_graph: SimpleGraph = SimpleGraph.from_dict(json.load(file))
     test_dataflow_manager_instance._graph_builder.save_simple_graph_to_neo4j(simple_graph.details)
     # --------------------------------------------------------------------------
     # 需要LLM: 讀取 SimpleGraph 反序列化, 並透過 LLM 建立實體圖, 序列化實體圖 Json
-    # with open('test/test_data/serialization/simple_graph.json', 'r') as file:
+    # with open('test/test_data/serialization/simple_graph.json', 'r', encoding='utf-8') as file:
     #     simple_graph: SimpleGraph = SimpleGraph.from_dict(json.load(file))
     # graph_documents = test_dataflow_manager_instance._graph_builder.get_entities_graph_from_llm(test_dataflow_manager_instance._llm, simple_graph.chunks, 
     #                                                                                     allowedNodes=[], allowedRelationship=[])
     # entity_graph_list = [graph_document_to_dict(graph_document) for graph_document in graph_documents]
-    # with open('test/test_data/serialization/entity_graph_list.json', 'w') as file:
+    # with open('test/test_data/serialization/entity_graph_list.json', 'w', encoding='utf-8') as file:
     #     json.dump(entity_graph_list, file, indent=4, ensure_ascii=False, sort_keys=True)
     # --------------------------------------------------------------------------
     # 本地測試: 讀取實體圖反序列化, 並儲存至 Neo4j, 並且與簡易圖合併
-    with open('test/test_data/serialization/entity_graph_list.json', 'r') as file:
+    with open('test/test_data/serialization/entity_graph_list.json', 'r', encoding='utf-8') as file:
         entity_graph_list = json.load(file)
     entity_graph_list = [dict_to_graph_document(graph_document) for graph_document in entity_graph_list]
     test_dataflow_manager_instance._save_entity_graph_to_neo4j(entity_graph_list)
     # --------------------------------------------------------------------------
     # 需要LLM: 找尋相似的節點, 並序列化
-    # with open('test/test_data/serialization/duplicate_nodes.json', 'r') as file:
+    # with open('test/test_data/serialization/duplicate_nodes.json', 'r', encoding='utf-8') as file:
     #     duplicate_nodes = json.load(file)
     # duplicate_nodes: list[DuplicateInfoDict] = test_dataflow_manager_instance._determine_similar_nodes_with_cached_llm(duplicate_nodes)
-    # with open('test/test_data/serialization/duplicate_nodes.json', 'w') as file:
+    # with open('test/test_data/serialization/duplicate_nodes.json', 'w', encoding='utf-8') as file:
     #     json.dump(duplicate_nodes, file, indent=4, ensure_ascii=False, sort_keys=True)
     # --------------------------------------------------------------------------
     # 本地測試: 反序列化相似節點, 並合併
-    with open('test/test_data/serialization/duplicate_nodes.json', 'r') as file:
+    with open('test/test_data/serialization/duplicate_nodes.json', 'r', encoding='utf-8') as file:
         duplicate_nodes = json.load(file)
     test_dataflow_manager_instance._merge_nodes(duplicate_nodes)
     g1 = test_dataflow_manager_instance._knowledge_service.get_all_graph()
     # --------------------------------------------------------------------------
     # 根據結構決定是否需要LLM
     # communities_info = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
-    # with open('test/test_data/serialization/communities_info.json', 'r') as file:
+    # with open('test/test_data/serialization/communities_info.json', 'r', encoding='utf-8') as file:
     #     cached_communities_info = json.load(file)
-    # with open('test/test_data/serialization/summaries.json', 'r') as file:
+    # with open('test/test_data/serialization/summaries.json', 'r', encoding='utf-8') as file:
     #     cached_summaries = json.load(file)
     # summaries = test_dataflow_manager_instance._knowledge_service.summarize_commnuities_with_cached(communities_info, cached_communities_info, cached_summaries)
-    # with open('test/test_data/serialization/summaries.json', 'w') as file:
+    # with open('test/test_data/serialization/summaries.json', 'w', encoding='utf-8') as file:
     #     json.dump(summaries, file, indent=4, ensure_ascii=False, sort_keys=True)
     # test_dataflow_manager_instance._knowledge_service.save_summary(summaries)
     # --------------------------------------------------------------------------
     # 直接使用地端資料建立Summaries
     communities_info = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
-    with open('test/test_data/serialization/summaries.json', 'r') as file:
+    with open('test/test_data/serialization/summaries.json', 'r', encoding='utf-8') as file:
         summaries = json.load(file)
     test_dataflow_manager_instance._knowledge_service.save_summary(summaries)
     # --------------------------------------------------------------------------
@@ -264,10 +264,10 @@ if __name__ == "__main__":
     
     # g2 = test_dataflow_manager_instance._knowledge_service.get_all_graph()
     # entity_diff = test_dataflow_manager_instance._knowledge_service.compare_graph_documents(g1, g2)
-    # with open('test/test_data/serialization/entity_diff.json', 'w') as file:
+    # with open('test/test_data/serialization/entity_diff.json', 'w', encoding='utf-8') as file:
     #     json.dump(entity_diff, file, indent=4, ensure_ascii=False, sort_keys=True)
     # communities_info2 = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
     # comm_diff = compare_community_lists(communities_info1, communities_info2)
     # # duump json 
-    # with open('test/test_data/serialization/comm_diff.json', 'w') as file:
+    # with open('test/test_data/serialization/comm_diff.json', 'w', encoding='utf-8') as file:
     #     json.dump(comm_diff, file, indent=4, ensure_ascii=False, sort_keys=True)

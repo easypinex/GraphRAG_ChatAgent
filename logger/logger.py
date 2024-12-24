@@ -1,4 +1,3 @@
-from freezegun import freeze_time
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import os
