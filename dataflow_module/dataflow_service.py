@@ -18,7 +18,7 @@ from graph_module.graph_builder import GraphBuilder
 from graph_module.knowledge_service import KnowledgeService
 from graph_module.dto.simple_graph import SimpleGraph
 from dataflow_module.rabbitmq_task import QueueTaskDict
-from dataflow_module.rabbitmq_sender import publish_queue_message
+from dataflow_module.rabbitmq_sender import publish_queue_message_sync
 from graph_module.dto.summary_info_dict import SummaryInfoDict
 from graph_module.dto.comnuity_info_dict import Neo4jCommunityInfoDict, compare_community_lists
 from minio_module.minio_service import MinioService, minio_service
@@ -68,7 +68,7 @@ class DataflowService:
         db_session.commit() 
         # 準備發布下個 queue 任務
         queue_task = QueueTaskDict.create_queue_task(task_type=QueueTaskDict.TaskType.ENTITY_BUILD, msg=json.dumps(simple_graph.to_dict()))
-        publish_queue_message(queue_task)
+        publish_queue_message_sync(queue_task)
         
     def _process_file_to_graph(self, file_path: str, read_file_kwargs = None, document_additional_properties=None) -> SimpleGraph:
         if document_additional_properties is None:
