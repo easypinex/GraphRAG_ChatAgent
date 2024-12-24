@@ -36,3 +36,4 @@ flask_apscheduler
 pymssql
 python-dotenv
 gunicorn
+minio
