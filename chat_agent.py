@@ -46,7 +46,7 @@ collect {
     WHERE c.summary is not null
     WITH c, c.rank as rank, c.weight AS weight
     RETURN c.summary 
-    ORDER BY rank DESC, weight DESC
+    ORDER BY rank, weight DESC
     LIMIT $topCommunities
 } AS report_mapping,
 // Outside Relationships 
