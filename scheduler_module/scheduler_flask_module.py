@@ -21,7 +21,7 @@ def init_scheduler(app):
     scheduler.add_job(
         id='daily_task',  # 任務 ID
         func=daily_task,  # 任務函數路徑
-        trigger=CronTrigger.from_crontab('0 1 * * *')  # 使用 Linux 格式的 Cron 表達式, 分時日月星期
+        trigger=CronTrigger.from_crontab('0 21 * * 5')  # 每週五21:00執行
     )
 
 @scheduler_module.route('/start_batch/daily', methods=['POST'])
