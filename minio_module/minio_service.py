@@ -28,7 +28,7 @@ class MinioService:
         COMMUNITIES_INFO = "communities_info"
         
     def __init__(self):
-        cert_verify = os.getenv("MINIO_CERT_CERIFY", "true").lower() == "true"
+        cert_verify = os.getenv("MINIO_CERT_VERIFY", "true").lower() == "true"
         http_client = None
         if not cert_verify:
             ssl_context = ssl.create_default_context()

@@ -4,7 +4,7 @@ import sys
 if __name__ == "__main__":
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import json
-
+import ssl
 import pika
 
 from dataflow_module.rabbitmq_task import QueueTaskDict
@@ -20,10 +20,18 @@ def main():
     rabbitmq_port = int(os.environ.get('RABBITMQ_PORT', 5672))
     rabbitmq_user = os.environ.get('RABBITMQ_USER', None)
     rabbitmq_pass = os.environ.get('RABBITMQ_PASSWORD', None)
+    rabbitmq_cert_verify = os.getenv("RABBITMQ_CERT_VERIFY", "true").lower() == "true"
+    rabbitmq_ssl = os.getenv("RABBITMQ_SSL", "true").lower() == "true"
+    ssl_context = None
+    if rabbitmq_ssl:
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        if not rabbitmq_cert_verify:
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
     credentials = None
     if rabbitmq_user and rabbitmq_pass:
         credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
-    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbitmq_host, rabbitmq_port, credentials=credentials))
+    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbitmq_host, rabbitmq_port, credentials=credentials, ssl_options=ssl_context))
     channel = connection.channel()
     channel.queue_declare(queue=rabbitmq_channel)
 
