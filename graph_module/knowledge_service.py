@@ -555,7 +555,7 @@ class KnowledgeService:
             for node in data['nodes']:
                 desc_list = []
                 for key in node:
-                    if key == 'uuid':
+                    if 'uuid' in key:
                         continue
                     if node[key] is not None:
                         desc_list.append(f"{key}: {node[key]}")
