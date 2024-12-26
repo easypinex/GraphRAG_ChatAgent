@@ -1,6 +1,6 @@
 from typing import Any, List, Optional, Type
 from langchain_core.embeddings import Embeddings
-from langchain_community.vectorstores.neo4j_vector import SearchType, DEFAULT_SEARCH_TYPE, Neo4jVector
+from langchain_neo4j.vectorstores.neo4j_vector import SearchType, DEFAULT_SEARCH_TYPE, Neo4jVector
 
 class TwlfNeo4jVector:
     @classmethod
@@ -93,7 +93,7 @@ class TwlfNeo4jVector:
             embedding_dimension and not store.embedding_dimension == embedding_dimension
         ):
             raise ValueError(
-                f"Index with name {store.index_name} already exists."
+                f"Index with name {store.index_name} already exists. "
                 "The provided embedding function and vector index "
                 "dimensions do not match.\n"
                 f"Embedding function dimension: {store.embedding_dimension}\n"

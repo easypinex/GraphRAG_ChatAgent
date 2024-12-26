@@ -2,7 +2,7 @@ import os
 
 from langchain_community.graphs import Neo4jGraph
 from langchain_openai import AzureOpenAIEmbeddings
-from langchain_community.vectorstores import Neo4jVector
+from langchain_neo4j import Neo4jVector
 from langchain_openai import AzureChatOpenAI
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
