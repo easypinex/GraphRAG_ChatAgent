@@ -7,7 +7,7 @@ if __name__ == "__main__":
 import json
 
 from langchain_openai import AzureChatOpenAI
-from langchain_community.graphs import Neo4jGraph
+from langchain_neo4j import Neo4jGraph
 from langchain_community.graphs.graph_document import GraphDocument
 from langchain_openai import AzureOpenAIEmbeddings
 
