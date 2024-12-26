@@ -81,7 +81,7 @@ RETURN {Chunks: text_mapping, Reports: report_mapping,
        Entities: entities} AS text, 1.0 AS score, {} AS metadata
 """
 
-vectorstore = Neo4jVector.from_existing_graph(embedding=embedding, 
+vectorstore: Neo4jVector = TwlfNeo4jVector.from_existing_graph(embedding=embedding, 
                                     index_name="embedding",
                                     node_label='__Entity__', 
                                     embedding_node_property='embedding', 
@@ -104,7 +104,7 @@ local_search_retriever = vectorstore.as_retriever(
                     }},
     tags=['GraphRAG']
 )
-vectorstore = TwlfNeo4jVector.from_existing_graph(
+vectorstore: Neo4jVector = TwlfNeo4jVector.from_existing_graph(
                                     embedding=embedding, 
                                     index_name="chunk_index",
                                     node_label='__Chunk__', 
