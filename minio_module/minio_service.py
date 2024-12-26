@@ -96,7 +96,7 @@ class MinioService:
             return [], [], []
         folders.sort()
         communities, summaries, duplicate_nodes = None, None, None
-        while communities is None or summaries is None and len(folders) > 0:
+        while (communities is None or summaries is None or duplicate_nodes is None) and len(folders) > 0:
             date = folders.pop()[len(floder):].replace('/', '')
             communities = self.download_refined_metadata_from_minio_as_dict(date, self.REFINE_METADATA_TYPE.COMMUNITIES_INFO)
             summaries = self.download_refined_metadata_from_minio_as_dict(date, self.REFINE_METADATA_TYPE.SUMMARIES)
