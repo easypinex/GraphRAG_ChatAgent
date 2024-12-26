@@ -128,12 +128,12 @@ class DataflowService:
         # 定義重複Entity並合併
         defined_duplicate_entities = self._determine_similar_nodes_with_cached_llm(cached_duplicate_nodes)
         self._merge_nodes(defined_duplicate_entities)
+        # 儲存至minio備份 - defined_duplicate_entities
+        minio_service.upload_refined_metadata_to_minio(task, defined_duplicate_entities, MinioService.REFINE_METADATA_TYPE.DUPLICATE_NODES)
         # 狀態改為總結中
         for file in files:
             file.status = FileTask.FileStatus.SUMMARIZING
         db_session.commit()
-        # 儲存至minio備份 - defined_duplicate_entities
-        minio_service.upload_refined_metadata_to_minio(task, defined_duplicate_entities, MinioService.REFINE_METADATA_TYPE.DUPLICATE_NODES)
         # 計算並建立社群 Entity -> [Commnuity]
         communities_info: list[Neo4jCommunityInfoDict] = self._knowledge_service.build_community_from_neo4j()
          # 儲存至minio備份 - communities_info
