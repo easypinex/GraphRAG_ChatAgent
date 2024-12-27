@@ -22,5 +22,9 @@ subjectAltName = @alt_names
 
 [ alt_names ]
 DNS.1   = localhost
-DNS.2   = acp.taiwanlife.com
+DNS.2   = aivex.taiwanlife.com
+DNS.3   = minio-kes
+DNS.4   = minio
+DNS.5   = acp.taiwanlife.com
+IP.1    = 10.1.242.15
 IP.1    = 10.1.242.139

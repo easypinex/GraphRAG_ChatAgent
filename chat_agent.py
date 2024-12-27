@@ -126,6 +126,6 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", 
                 port=8000,
-                ssl_keyfile="./self-sign/key.pem",
-                ssl_certfile="./self-sign/cert.pem"
+                ssl_keyfile="./self-sign/private.key",
+                ssl_certfile="./self-sign/public.crt"
                 )
