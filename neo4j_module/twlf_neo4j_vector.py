@@ -289,7 +289,7 @@ class TwlfNeo4jVector(Neo4jVector):
             **params,
             **filter_params,
         }
-        print(read_query, parameters)
+        # print(read_query, parameters)
         results = self.query(read_query, params=parameters)
         '''
         
@@ -363,6 +363,7 @@ def _get_search_index_query(
             YIELD node, score
             WHERE node IN allFilteredNodes
             RETURN node, score
+            ORDER BY score DESC
             LIMIT $k 
         }}
         """
