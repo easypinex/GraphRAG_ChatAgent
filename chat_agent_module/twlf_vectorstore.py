@@ -18,7 +18,8 @@ def get_localsearch_vectorstore(embedding) -> TwlfNeo4jVector:
         WITH
         collect {
             UNWIND nodes as n
-            MATCH (n)<-[:HAS_ENTITY]->(c:__Chunk__)<-[:HAS_CHILD]->(p:__Parent__)
+            MATCH (n)<-[:HAS_ENTITY]->(c:__Chunk__)<-[:HAS_CHILD]->(p:__Parent__)-[:PART_OF]->(d:__Document__)
+            WHERE $fileIds IS NULL OR d.file_task_id IN $fileIds
             WITH c, p, count(distinct n) as freq
             RETURN {content: p.content, source: p.source} AS chunkText
             ORDER BY freq DESC

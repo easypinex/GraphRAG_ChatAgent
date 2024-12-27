@@ -41,7 +41,7 @@ class FileFilterRetriever(Runnable):
             fileIds = None
         update_search_kwargs = {
             "additional_match_cypher": "MATCH (n:__Entity__)<-[:HAS_ENTITY]-(c:__Chunk__)<-[:HAS_CHILD]-(p:__Parent__)-[:PART_OF]->(d:__Document__)",
-            'additional_where_cypher': "WHERE $fileIds IS NULL OR d.id IN $fileIds"
+            'additional_where_cypher': "WHERE $fileIds IS NULL OR d.file_task_id IN $fileIds"
         }
         if not fileIds:
             update_search_kwargs['additional_match_cypher'] = None

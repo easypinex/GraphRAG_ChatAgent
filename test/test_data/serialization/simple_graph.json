@@ -708,7 +708,8 @@
                     "file_path": "台灣人壽新住院醫療保險附約.pdf",
                     "filename": "台灣人壽新住院醫療保險附約.pdf",
                     "id": "bbe9f0d5-a3a3-49c2-92e7-07367d14ebd1",
-                    "total_page_num": 10
+                    "total_page_num": 10,
+                    "file_task_id": 1
                 },
                 "page_content": ""
             },

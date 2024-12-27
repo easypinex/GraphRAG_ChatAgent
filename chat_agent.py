@@ -92,7 +92,7 @@ conversational_rag_chain = RunnableWithMessageHistory(
 class ChatInput(BaseModel):
     """Chat history with the bot."""
     question: str
-    fileIds: List[str] = Field(default=[], description="Optional list of file IDs")
+    fileIds: List[int] = Field(default=[], description="Optional list of file IDs")
     
     
 conversational_rag_chain = (
