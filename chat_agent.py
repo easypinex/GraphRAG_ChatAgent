@@ -1,8 +1,8 @@
 import os
+from typing import List, Optional
 
-from langchain_community.graphs import Neo4jGraph
 from langchain_openai import AzureOpenAIEmbeddings
-from langchain_neo4j import Neo4jVector
+from langchain_neo4j import Neo4jGraph
 from langchain_openai import AzureChatOpenAI
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -13,10 +13,10 @@ from langchain_core.runnables import RunnableParallel, RunnableLambda
 from langchain_core.output_parsers.string import StrOutputParser
 from fastapi import FastAPI
 from langserve import add_routes
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
-from neo4j_module.twlf_neo4j_vector import TwlfNeo4jVector
+from chat_agent_module.twlf_vectorstore import get_baseline_retriever, get_localsearch_retriever
 from prompts.prompts import QUESTION_HISTORY_PROMPT, QUESTION_PROMPT
 
 database = os.environ.get('NEO4J_DATABASE')
@@ -27,94 +27,8 @@ embedding = AzureOpenAIEmbeddings(
     azure_deployment='text-embedding-3-small',
     openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"]
 )
-
-lc_retrieval_query = """
-WITH collect(node) as nodes
-// Entity - Text Unit Mapping
-WITH
-collect {
-    UNWIND nodes as n
-    MATCH (n)<-[:HAS_ENTITY]->(c:__Chunk__)<-[:HAS_CHILD]->(p:__Parent__)
-    WITH c, p, count(distinct n) as freq
-    RETURN {content: p.content, source: p.source} AS chunkText
-    ORDER BY freq DESC
-    LIMIT $topChunks
-} AS text_mapping,
-// Entity - Report Mapping
-collect {
-    UNWIND nodes as n
-    MATCH (n)-[:IN_COMMUNITY*]->(c:__Community__)
-    WHERE c.summary is not null
-    WITH c, c.rank as rank, c.weight AS weight
-    RETURN c.summary 
-    ORDER BY rank, weight DESC
-    LIMIT $topCommunities
-} AS report_mapping,
-// Outside Relationships 
-collect {
-    UNWIND nodes as n
-    MATCH (n)-[r]-(m) 
-    WHERE NOT m IN nodes and r.description is not null
-    RETURN {description: r.description, sources: r.sources} AS descriptionText
-    ORDER BY r.rank DESC, r.weight DESC 
-    LIMIT $topOutsideRels
-} as outsideRels,
-// Inside Relationships 
-collect {
-    UNWIND nodes as n
-    MATCH (n)-[r]-(m) 
-    WHERE m IN nodes and r.description is not null
-    RETURN {description: r.description, sources: r.sources} AS descriptionText
-    ORDER BY r.rank DESC, r.weight DESC 
-    LIMIT $topInsideRels
-} as insideRels,
-// Entities description
-collect {
-    UNWIND nodes as n
-    match (n)
-    WHERE n.description is not null
-    RETURN {description: n.description, sources: n.sources} AS descriptionText
-} as entities
-// We don't have covariates or claims here
-RETURN {Chunks: text_mapping, Reports: report_mapping, 
-       Relationships: outsideRels + insideRels, 
-       Entities: entities} AS text, 1.0 AS score, {} AS metadata
-"""
-
-vectorstore: Neo4jVector = TwlfNeo4jVector.from_existing_graph(embedding=embedding, 
-                                    index_name="embedding",
-                                    node_label='__Entity__', 
-                                    embedding_node_property='embedding', 
-                                    text_node_properties=['id', 'description'],
-                                    retrieval_query=lc_retrieval_query)
-topChunks = 3
-topCommunities = 3
-topOutsideRels = 10
-topInsideRels = 10
-topEntities = 10
-local_search_retriever = vectorstore.as_retriever(
-    search_type="similarity_score_threshold",
-    search_kwargs={'score_threshold': 0.9,
-                   'k': topEntities,
-                   'params': {
-                        "topChunks": topChunks,
-                        "topCommunities": topCommunities,
-                        "topOutsideRels": topOutsideRels,
-                        "topInsideRels": topInsideRels,
-                    }},
-    tags=['GraphRAG']
-)
-vectorstore: Neo4jVector = TwlfNeo4jVector.from_existing_graph(
-                                    embedding=embedding, 
-                                    index_name="chunk_index",
-                                    node_label='__Chunk__', 
-                                    embedding_node_property='embedding', 
-                                    text_node_properties=['content'])
-vector_retriever = vectorstore.as_retriever(
-    search_type="similarity_score_threshold",
-    search_kwargs={'score_threshold': 0.9},
-    tags=['RAG']
-)
+local_search_retriever = get_localsearch_retriever(embedding)
+vector_retriever = get_baseline_retriever(embedding)
 
 llm = AzureChatOpenAI(
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
@@ -123,13 +37,11 @@ llm = AzureChatOpenAI(
 )
 prompt = QUESTION_PROMPT
 
-rag_chain = (
-    {"context": vector_retriever, "question": RunnablePassthrough(), "graph_result": local_search_retriever}
-    | prompt
-    | llm
-    | StrOutputParser()
-)
-
+# rag_chain = (
+#     {"context": vector_retriever, "question": RunnablePassthrough(), "graph_result": local_search_retriever}
+#     | prompt
+#     | llm
+# )
 # 定義上下文解析的Chain
 contextualize_q_prompt = QUESTION_HISTORY_PROMPT
 
@@ -154,12 +66,12 @@ context_and_search_chain = RunnableParallel(
     {
         "context": RunnableLambda(lambda inputs: vector_retriever.invoke(inputs)),
         "graph_result": RunnableLambda(lambda inputs: local_search_retriever.invoke(inputs)),
-        "question": lambda x: x,  # 保留原始輸入
+        "question": lambda inputs: inputs.get("question"),  # 保留原始問題
     }
 )
 
 rag_chain = (
-    contextualize_chain
+    {"question": contextualize_chain, "inputs": RunnablePassthrough()}
     | context_and_search_chain
     | prompt
     | llm
@@ -167,6 +79,7 @@ rag_chain = (
         "tags": ['final_output']
     })
 )
+
 conversational_rag_chain = RunnableWithMessageHistory(
     rag_chain,
     get_session_history,
@@ -176,13 +89,15 @@ conversational_rag_chain = RunnableWithMessageHistory(
 
 
 
-class ChatHistory(BaseModel):
+class ChatInput(BaseModel):
     """Chat history with the bot."""
     question: str
+    fileIds: List[str] = Field(default=[], description="Optional list of file IDs")
+    
     
 conversational_rag_chain = (
   conversational_rag_chain | StrOutputParser()
-).with_types(input_type=ChatHistory)
+).with_types(input_type=ChatInput)
 
 # 4. App definition
 app = FastAPI(

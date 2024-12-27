@@ -9,16 +9,17 @@ from copy import deepcopy
 import sseclient
 import requests
 
+from datetime import datetime
 
 # ! pip install sseclient-py
 
-QUESTION = '首期繳費有哪些方式?'
+QUESTION = '台灣人壽介紹, 請給我長篇回答'
 URL = 'http://localhost:8000/stream_events'
 
 input_json = {
     "input": {
-        "chat_history": [],
-        "question": QUESTION
+        "question": QUESTION,
+        "fileIds": []
     },
     "config": {
         "configurable": {
@@ -56,7 +57,7 @@ for event in client.events():
     elif 'final_output' in tags:
         chunk = data['data'].get('chunk')
         if chunk is not None:
-            print(chunk, end="")
+            print(chunk, datetime.now())
     # else:
     #     print(f'event: {event}, name: {name}, tags: {tags}, data:{data}')
     #     print('-' * 40)
