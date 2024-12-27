@@ -289,7 +289,7 @@ class TwlfNeo4jVector(Neo4jVector):
             **params,
             **filter_params,
         }
-
+        print(read_query, parameters)
         results = self.query(read_query, params=parameters)
         '''
         
