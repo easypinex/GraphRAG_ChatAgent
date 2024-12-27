@@ -19,7 +19,6 @@ class TwlfLlmGraphTransformer(LLMGraphTransformer):
     1. 由於原生 LLMGraphTransformer node_properties, relationship_properties 並不支援參數為必填(預設都是讓LLM選填)
         因此需要透過自定義來處理為每個 properties 都為必填
     2. System Prompt 提示使用繁體中文回應問題
-    
     '''
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -29,10 +28,12 @@ class TwlfLlmGraphTransformer(LLMGraphTransformer):
         llm = kwargs.get("llm", None)
         relationship_properties = kwargs.get("relationship_properties", [])
         prompt = kwargs.get("prompt", None)
+
         try:
             llm_type = llm._llm_type  # type: ignore
         except AttributeError:
             llm_type = None
+
         schema = my_create_simple_model(
             allowed_nodes,
             allowed_relationships,
@@ -124,7 +125,7 @@ def my_create_simple_model(
 
         node_fields["properties"] = (
             Optional[List[Property]],
-            Field(..., description="List of node properties"), # 這裡從 None -> ...(變成必填)
+            Field(..., description="List of node properties"), # 這裡從 Field(None, description) -> Field(..., description) (變成必填)
         )
     SimpleNode = create_model("SimpleNode", **node_fields)  # type: ignore
 

@@ -26,10 +26,12 @@ def flask_init_db(app):
     @app.teardown_appcontext
     def remove_session(exception=None):
         shutdown_session(exception)
+
 app = create_app()
 with app.app_context():
     # 使用 Base.metadata 操作資料庫
     flask_init_db(app)
+    
 if __name__ == '__main__':
     print(app.url_map)
     app.run()

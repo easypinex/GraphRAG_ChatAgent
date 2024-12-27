@@ -6,7 +6,7 @@ class Neo4jCommunityInfoDict(TypedDict):
     example:
     {
         "communityId": "0-1",
-        "nodes": [
+        "nodes": (entities) [
             {
                 "id": "保險金給付之限制",
                 "description": "被保險人已獲得全民健康保險給付的部分，本公司不予給付保險金。",
@@ -14,7 +14,12 @@ class Neo4jCommunityInfoDict(TypedDict):
                 "sources": ["台灣人壽新住院醫療保險附約.pdf"],
                 "uuid": "uuid()"
             },
-            {"id": "第十四條", "type": "條款", "sources": ["台灣人壽新住院醫療保險附約.pdf"], "uuid": "uuid()"},
+            {
+                "id": "第十四條", 
+                "type": "條款", 
+                "sources": ["台灣人壽新住院醫療保險附約.pdf"], 
+                "uuid": "uuid()"
+            },
         ],
         "rels": [{"start": "第十四條", "description": None, "type": "描述", "end": "保險金給付之限制", "uuid": "uuid()"}],
     }
