@@ -37,3 +37,4 @@ pymssql
 python-dotenv
 gunicorn
 minio
+langchain_neo4j

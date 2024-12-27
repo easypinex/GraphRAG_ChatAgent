@@ -26,6 +26,7 @@ from neo4j_module.neo4j_object_serialization import dict_to_graph_document, grap
 from neo4j_module.neo4j_backup_restore import backup_neo4j_to_dict, restore_neo4j_from_dict
 from graph_module.dto.duplicate_info_dict import DuplicateInfoDict
 
+
 class DataflowService:
     def __init__(self, parse_file_using_llm: bool = True):
         self._llm = AzureChatOpenAI(
@@ -45,21 +46,24 @@ class DataflowService:
         self._graph = Neo4jGraph()
         self._graph_builder = GraphBuilder(self._graph)
         self._knowledge_service = KnowledgeService(self._graph, self._embedding, self._llm)
-        
+
     def received_file_task(self, file_task: FileTask):
+        """
+        由 RabbitMQ 觸發, 收到新文件時執行
+        """
         file_task: FileTask = db_session.query(FileTask).get(file_task.id)
         if file_task is None:
             raise Exception("File task not found")
         # 狀態改為處理中
         file_task.status = FileTask.FileStatus.GRAPH_PROCESSING
-        db_session.commit() 
+        db_session.commit()
         # 檔案轉 Simple Graph, Document -> Parent -> Chunk
         simple_graph = self._process_file_to_graph(file_task.file_path, 
                                                    document_additional_properties={'file_task_id': file_task.id})
         simple_graph.file_id = file_task.id
         # 儲存基本圖
         self._graph_builder.save_simple_graph_to_neo4j(simple_graph.details)
-        # 將檔案儲存至Minio並刪除
+        # 將檔案儲存至 Minio 並刪除本地檔案
         minio_service.upload_user_uploaded_file_to_minio(file_task)
         # 儲存simple_graph至minio
         minio_service.upload_user_uploaded_metadata_to_minio(file_task.minio_dir, simple_graph.to_dict(), MinioService.USER_UPLOADED_METADATA_TYPE.SIMPLE_GRAPH)
@@ -71,17 +75,28 @@ class DataflowService:
         publish_queue_message_sync(queue_task)
         
     def _process_file_to_graph(self, file_path: str, read_file_kwargs = None, document_additional_properties=None) -> SimpleGraph:
+        """
+        讀取檔案內容
+        轉 Simple Graph, 建立節點: Document -> Parent -> Chunk
+        """
         if document_additional_properties is None:
             document_additional_properties = {}
         if read_file_kwargs is None:
             read_file_kwargs = {}
+
         # 開始讀取檔案
         pages = self._file_service.read_file(file_path, load_kwargs=read_file_kwargs)
+
         # 建立基本圖
-        simple_graph: SimpleGraph = self._graph_builder.build_chunk_graph_with_parent_child([pages], document_additional_properties=document_additional_properties)
-        return simple_graph
+        # simple_graph: SimpleGraph = self._graph_builder.build_chunk_graph_with_parent_child([pages], document_additional_properties=document_additional_properties)
+        
+        return None
     
     def received_entity_task(self, simple_graph: SimpleGraph):
+        """
+        由 RabbitMQ 觸發, 新文件完成 SimpleGraph 後執行
+        從 Chunk 產生 Entity, 並且建立 Relationship
+        """
         file_task: FileTask = db_session.query(FileTask).get(simple_graph.file_id)
         if file_task is None:
             raise Exception("File task not found")
@@ -99,13 +114,22 @@ class DataflowService:
         db_session.commit() 
         
     def _save_entity_graph_to_neo4j(self, graph_documents: list[GraphDocument]):
+        """
+        儲存 Entity 到 Neo4j, 並且建立 relationship
+        """
         # 儲存實體圖
-        self._graph.add_graph_documents(graph_documents, baseEntityLabel=True)
+        self._graph.add_graph_documents(graph_documents, baseEntityLabel=True) # 此次加入的 node 會有 __entity__ 的 label
         chunks_and_graph_documents_list = self._graph_builder.get_chunk_and_graph_document(graph_documents)
-        # 於Neo4j確認與Chunk合併
+
+        # 以 Cypher 語法將 Chunk 與 Entity 建立 Relationship
         self._graph_builder.merge_relationship_between_chunk_and_entites(chunks_and_graph_documents_list)
         
     def received_refine_task(self, task: QueueTaskDict):
+        """
+        由 RabbitMQ 觸發, 批次執行
+        應對新文件已創建 Entity, 需要重整 Entity 與加入建立 Community
+        因此如果文件未更新應不需動作
+        """
         files = db_session.query(FileTask).filter(
                         FileTask.status.in_([FileTask.FileStatus.REFINED_PENDING, FileTask.FileStatus.REFINING_KNOWLEDGE, 
                                              FileTask.FileStatus.SUMMARIZING, FileTask.FileStatus.COMPLETED]),
@@ -123,7 +147,7 @@ class DataflowService:
                         self._knowledge_service.get_builded_task_graph(files)
         for file, (_, graph_documents) in file_graph_dict.items():
             self._save_entity_graph_to_neo4j(graph_documents)
-        # 嘗試抓去過去最新的重整備份資料
+        # 嘗試抓去過去最新的重整備份資料 (假如第一次執行也有可能沒有)
         cached_commnuities_info, cached_summaries, cached_duplicate_nodes = minio_service.download_latest_refined_data()
         # 定義重複Entity並合併
         defined_duplicate_entities = self._determine_similar_nodes_with_cached_llm(cached_duplicate_nodes)
@@ -176,7 +200,6 @@ class DataflowService:
         # 修改擁有多個desction的Entity描述, 合併為字串
         self._knowledge_service.combine_description_list()
         
-    
     def received_restore_neo4j(self, date: str):
         db_all_data = minio_service.download_neo4j_backup_to_dict(date)
         self._knowledge_service.remove_all_data()
@@ -185,9 +208,10 @@ class DataflowService:
     def received_backup_neo4j(self):
         neo4j_all_data = backup_neo4j_to_dict(self._graph)
         minio_service.upload_neo4j_backup_to_minio(neo4j_all_data)
-
+        
         
 dataflow_manager_instance = DataflowService(parse_file_using_llm = True)
+
 
 if __name__ == "__main__":
     '''
@@ -196,78 +220,80 @@ if __name__ == "__main__":
     若有需要自行開啟註解部分(需要 Azure LLM), 或直接使用儲存好的Json進行本地測試, 
     測試資料為完整 台灣人壽新住院醫療保險附約 檔案內容
     '''
+    CUR_FILE_PATH = os.path.dirname(os.path.abspath(__file__))
+    ROOT_SAVE_DIR = f'{CUR_FILE_PATH}/../test/test_data/serialization'
     test_dataflow_manager_instance = DataflowService(parse_file_using_llm = True)
-    root_save_dir = 'test/test_data/serialization'
+    # with DataflowService(parse_file_using_llm = True) as test_dataflow_manager_instance:
     test_dataflow_manager_instance._knowledge_service.remove_all_data()
     # --------------------------------------------------------------------------
     # 需要LLM: 讀取檔案建立 SimpleGraph, 並序列化
-    # file_path = os.path.join('test', 'test_data', '台灣人壽新住院醫療保險附約.pdf')
-    # read_file_kwargs = None # 如果只想讀取特定幾頁可以用 read_file_kwargs={'pages': [1, 2]}
+    # file_path = os.path.join(CUR_FILE_PATH, '..', 'test', 'test_data', '台灣人壽新住院醫療保險附約.pdf')
+    # read_file_kwargs = {'pages': [1, 2]} # 如果只想讀取特定幾頁可以用 read_file_kwargs={'pages': [1, 2]}
     # simple_graph: SimpleGraph = test_dataflow_manager_instance._process_file_to_graph(file_path, read_file_kwargs=read_file_kwargs)
-    # with open(f'{root_save_dir}/simple_graph.json', 'w', encoding='utf-8') as file:
+    # with open(f'{ROOT_SAVE_DIR}/simple_graph.json', 'w') as file:
     #     json.dump(simple_graph.to_dict(), file, indent=4, ensure_ascii=False, sort_keys=True)
     # --------------------------------------------------------------------------
     # 本地測試: 讀取 SimpleGraph 反序列化, 並建立簡易圖, 並儲存至 Neo4j
-    with open('test/test_data/serialization/simple_graph.json', 'r', encoding='utf-8') as file:
+    with open(f'{ROOT_SAVE_DIR}/simple_graph.json', 'r', encoding='utf-8') as file:
         simple_graph: SimpleGraph = SimpleGraph.from_dict(json.load(file))
     test_dataflow_manager_instance._graph_builder.save_simple_graph_to_neo4j(simple_graph.details)
     # --------------------------------------------------------------------------
     # 需要LLM: 讀取 SimpleGraph 反序列化, 並透過 LLM 建立實體圖, 序列化實體圖 Json
-    # with open('test/test_data/serialization/simple_graph.json', 'r', encoding='utf-8') as file:
+    # with open(f'{ROOT_SAVE_DIR}/simple_graph.json', 'r', encoding='utf-8') as file:
     #     simple_graph: SimpleGraph = SimpleGraph.from_dict(json.load(file))
     # graph_documents = test_dataflow_manager_instance._graph_builder.get_entities_graph_from_llm(test_dataflow_manager_instance._llm, simple_graph.chunks, 
     #                                                                                     allowedNodes=[], allowedRelationship=[])
     # entity_graph_list = [graph_document_to_dict(graph_document) for graph_document in graph_documents]
-    # with open('test/test_data/serialization/entity_graph_list.json', 'w', encoding='utf-8') as file:
+    # with open(f'{ROOT_SAVE_DIR}/entity_graph_list.json', 'w', encoding='utf-8') as file:
     #     json.dump(entity_graph_list, file, indent=4, ensure_ascii=False, sort_keys=True)
     # --------------------------------------------------------------------------
     # 本地測試: 讀取實體圖反序列化, 並儲存至 Neo4j, 並且與簡易圖合併
-    with open('test/test_data/serialization/entity_graph_list.json', 'r', encoding='utf-8') as file:
+    with open(f'{ROOT_SAVE_DIR}/entity_graph_list.json', 'r', encoding='utf-8') as file:
         entity_graph_list = json.load(file)
     entity_graph_list = [dict_to_graph_document(graph_document) for graph_document in entity_graph_list]
     test_dataflow_manager_instance._save_entity_graph_to_neo4j(entity_graph_list)
     # --------------------------------------------------------------------------
     # 需要LLM: 找尋相似的節點, 並序列化
-    # with open('test/test_data/serialization/duplicate_nodes.json', 'r', encoding='utf-8') as file:
+    # with open(f'{ROOT_SAVE_DIR}/duplicate_nodes.json', 'r', encoding='utf-8') as file:
     #     duplicate_nodes = json.load(file)
     # duplicate_nodes: list[DuplicateInfoDict] = test_dataflow_manager_instance._determine_similar_nodes_with_cached_llm(duplicate_nodes)
-    # with open('test/test_data/serialization/duplicate_nodes.json', 'w', encoding='utf-8') as file:
+    # with open(f'{ROOT_SAVE_DIR}/duplicate_nodes.json', 'w', encoding='utf-8') as file:
     #     json.dump(duplicate_nodes, file, indent=4, ensure_ascii=False, sort_keys=True)
     # --------------------------------------------------------------------------
     # 本地測試: 反序列化相似節點, 並合併
-    with open('test/test_data/serialization/duplicate_nodes.json', 'r', encoding='utf-8') as file:
+    with open(f'{ROOT_SAVE_DIR}/duplicate_nodes.json', 'r', encoding='utf-8') as file:
         duplicate_nodes = json.load(file)
     test_dataflow_manager_instance._merge_nodes(duplicate_nodes)
     g1 = test_dataflow_manager_instance._knowledge_service.get_all_graph()
     # --------------------------------------------------------------------------
     # 根據結構決定是否需要LLM
     # communities_info = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
-    # with open('test/test_data/serialization/communities_info.json', 'r', encoding='utf-8') as file:
+    # with open(f'{ROOT_SAVE_DIR}/communities_info.json', 'r', encoding='utf-8') as file:
     #     cached_communities_info = json.load(file)
-    # with open('test/test_data/serialization/summaries.json', 'r', encoding='utf-8') as file:
+    # with open(f'{ROOT_SAVE_DIR}/summaries.json', 'r', encoding='utf-8') as file:
     #     cached_summaries = json.load(file)
     # summaries = test_dataflow_manager_instance._knowledge_service.summarize_commnuities_with_cached(communities_info, cached_communities_info, cached_summaries)
-    # with open('test/test_data/serialization/summaries.json', 'w', encoding='utf-8') as file:
+    # with open(f'{ROOT_SAVE_DIR}/summaries.json', 'w', encoding='utf-8') as file:
     #     json.dump(summaries, file, indent=4, ensure_ascii=False, sort_keys=True)
     # test_dataflow_manager_instance._knowledge_service.save_summary(summaries)
     # --------------------------------------------------------------------------
     # 直接使用地端資料建立Summaries
     communities_info = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
-    with open('test/test_data/serialization/summaries.json', 'r', encoding='utf-8') as file:
+    with open(f'{ROOT_SAVE_DIR}/summaries.json', 'r', encoding='utf-8') as file:
         summaries = json.load(file)
     test_dataflow_manager_instance._knowledge_service.save_summary(summaries)
     # --------------------------------------------------------------------------
-    # # 本地測試: 如果需要, 重建知識 並且比對, 理論上會一樣
+    # 本地測試: 如果需要, 重建知識 並且比對, 理論上會一樣
     # test_dataflow_manager_instance._knowledge_service.remove_all_entities_and_commnuities()
     # test_dataflow_manager_instance._save_entity_graph_to_neo4j(entity_graph_list)
     # test_dataflow_manager_instance._merge_nodes(duplicate_nodes)
     
     # g2 = test_dataflow_manager_instance._knowledge_service.get_all_graph()
     # entity_diff = test_dataflow_manager_instance._knowledge_service.compare_graph_documents(g1, g2)
-    # with open('test/test_data/serialization/entity_diff.json', 'w', encoding='utf-8') as file:
+    # with open(f'{ROOT_SAVE_DIR}/entity_diff.json', 'w', encoding='utf-8') as file:
     #     json.dump(entity_diff, file, indent=4, ensure_ascii=False, sort_keys=True)
     # communities_info2 = test_dataflow_manager_instance._knowledge_service.build_community_from_neo4j()
     # comm_diff = compare_community_lists(communities_info1, communities_info2)
     # # duump json 
-    # with open('test/test_data/serialization/comm_diff.json', 'w', encoding='utf-8') as file:
+    # with open(f'{ROOT_SAVE_DIR}/comm_diff.json', 'w', encoding='utf-8') as file:
     #     json.dump(comm_diff, file, indent=4, ensure_ascii=False, sort_keys=True)

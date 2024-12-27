@@ -28,6 +28,10 @@ import pandas as pd
 
 class KnowledgeService:
     class PotentialDuplicateNodeDict(TypedDict):
+        """
+        可能要合併的 Entity, 待 LLM 做決定
+        combinedResult: list[str]
+        """
         combinedResult: list[str]
     
     def __init__(self, graph, embedding, llm):
@@ -43,6 +47,7 @@ class KnowledgeService:
             os.environ[ "NEO4J_URI" ],
             auth=(os.environ[ "NEO4J_USERNAME" ], os.environ[ "NEO4J_PASSWORD" ]) 
         )
+        # 將子圖 drop 掉
         gds.graph.drop("entities")
         # 检查是否存在 __Entity__ 节点
         query = """
@@ -54,25 +59,28 @@ class KnowledgeService:
             print("No '__Entity__' nodes found in the database.")
             return []
         
+        # 從原本的 graph 資料中撈取所有 entity, 然後建立一個子圖 （在運算上站的資源較少）
         G, result = gds.graph.project(
             "entities",                   # Graph name
             "__Entity__",                 # Node projection
             "*",                          # Relationship projection
-            nodeProperties=["embedding"]  # Configuration parameters
+            nodeProperties=["embedding"]  # Configuration parameters (指定將原本 node 的 property 帶過來)
         )
+
         # 使用 gds.knn.mutate 根據嵌入向量相似度創建關聯關係
+        # 會在每一個 node 之間加上一個 relationship, 並且把 score 寫到 rel 的 prop 裡
+        # 並且濾掉分數 < 0.95 的 relationship
         similarity_threshold = 0.95
         gds.knn.mutate(
             G,
-            nodeProperties=['embedding'],
-            mutateRelationshipType= 'SIMILAR',
-            mutateProperty= 'score',
-            similarityCutoff=similarity_threshold
+            nodeProperties=['embedding'],           # The node properties to use for similarity computation
+            mutateRelationshipType= 'SIMILAR',      # The relationship type used for the new relationships written to the projected graph.
+            mutateProperty= 'score',                # The relationship property in the GDS graph to which the similarity score is written
+            similarityCutoff=similarity_threshold   # Filter out from the list of K-nearest neighbors nodes with similarity below this threshold.
         )
         
         # 使用 gds.wcc.write 將相似節點進行社群劃分
         # writeProperty="wcc": 為每個節點寫入 wcc 屬性，表示該節點屬於哪個社群。
-
         gds.wcc.write(
             G,
             writeProperty="wcc",
@@ -81,11 +89,16 @@ class KnowledgeService:
         
         # 查找具有潛在重複 ID 的節點
         word_edit_distance = 3
+        # potential_duplicate_candidates = [
+        #     {"combinedResult": ["entity1", "entity2", ...]},
+        #     {"combinedResult": ["entity5", "entity6"]},
+        # ]
         potential_duplicate_candidates = self.graph.query(
             """MATCH (e:`__Entity__`)
             WHERE size(e.id) > 3 // longer than 3 characters
             WITH e.wcc AS community, collect(e) AS nodes, count(*) AS count
             WHERE count > 1
+
             UNWIND nodes AS node
             // Add text distance
             WITH distinct
@@ -93,6 +106,7 @@ class KnowledgeService:
                         OR node.id CONTAINS n.id | n.id] AS intermediate_results
             WHERE size(intermediate_results) > 1
             WITH collect(intermediate_results) AS results
+
             // combine groups together if they share elements
             UNWIND range(0, size(results)-1, 1) as index
             WITH results, index, results[index] as result
@@ -104,6 +118,7 @@ class KnowledgeService:
                     END
             )) as combinedResult
             WITH distinct(combinedResult) as combinedResult
+
             // extra filtering
             WITH collect(combinedResult) as allCombinedResults
             UNWIND range(0, size(allCombinedResults)-1, 1) as combinedResultIndex
@@ -114,12 +129,14 @@ class KnowledgeService:
             )
             RETURN combinedResult
             """, params={'distance': word_edit_distance})
+        
         return potential_duplicate_candidates
     
     def determine_similar_nodes_with_cached_llm(self, potential_duplicate_candidates: list[PotentialDuplicateNodeDict], 
                                                     cached_duplicate_nodes: list[DuplicateInfoDict]) -> list[DuplicateInfoDict]:
         if len(cached_duplicate_nodes) == 0:
             return self.determine_similar_nodes_with_llm(potential_duplicate_candidates)
+        
         # 1. 建立快取索引：key 為 frozenset(cached_input)，value 為對應的 DuplicateInfoDict
         cache_map: dict[frozenset[str], DuplicateInfoDict] = {}
         for dup_info in cached_duplicate_nodes:
@@ -158,27 +175,28 @@ class KnowledgeService:
             ...
         ]
         '''
-
         system_prompt = PROMPT_FIND_DUPLICATE_NODES_SYSTEM
         user_template = PROMPT_FIND_DUPLICATE_NODES_USER
 
-
         class DuplicateEntities(BaseModel):
+            """
+            entities: List[str]
+            """
             entities: List[str] = Field(
                 description="Entities that represent the same object or real-world entity and should be merged"
             )
 
-
         class Disambiguate(BaseModel):
+            """
+            merge_entities: Optional[List[DuplicateEntities]]
+            """
             merge_entities: Optional[List[DuplicateEntities]] = Field(
                 description="Lists of entities that represent the same object or real-world entity and should be merged"
             )
 
-
         extraction_llm = self.llm.with_structured_output(
             Disambiguate
         )
-
         extraction_prompt = ChatPromptTemplate.from_messages(
             [
                 (
@@ -191,7 +209,6 @@ class KnowledgeService:
                 ),
             ]
         )
-
         extraction_chain = extraction_prompt | extraction_llm
 
         def resolve_and_merge_entities_with_llm(potential_duplicate_candidates, max_retry=0) -> list[DuplicateInfoDict]:
@@ -222,6 +239,7 @@ class KnowledgeService:
                     future = executor.submit(entity_resolution, el['combinedResult'])
                     merged_future_map[future] = el
                     futures.append(future)
+
                 for future in tqdm(
                     as_completed(futures), total=len(futures), desc="Processing documents"
                 ):
@@ -232,9 +250,12 @@ class KnowledgeService:
                         el = merged_future_map[future]
                         print(f'process element faild!:{el['combinedResult']}, error:\n{e}')
                         merged_failds.append(el)
+
             if len(merged_failds) > 0 and max_retry > 0:
                 merged_entities_result.extend(resolve_and_merge_entities_with_llm(merged_failds, max_retry=max_retry-1))
+
             return merged_entities_result
+        
         merged_entities = resolve_and_merge_entities_with_llm(potential_duplicate_candidates, max_retry=0)
         return merged_entities
     
@@ -244,7 +265,7 @@ class KnowledgeService:
         將經過人工確認的多個 __Entity__ 節點合併為一個節點:
         1. 在合併前先取得所需屬性 (sources, uuid_hash, 以及合成 uuid 所需的基底值)。
         2. 使用 apoc.refactor.mergeNodes 合併節點。
-        3. 使用排序後的舊節點 uuid 所組成的字串作為新節點的 uuid，保證同組合併節點後的 uuid 與 uuid_hash 穩定一致。
+        3. 使用排序後的舊節點 uuid 所組成的字串進行md5運作產生新節點的 uuid，保證同組合併節點後的 uuid 與 uuid_hash 穩定一致。
         """
         self.graph.query("""
         UNWIND $data AS candidates
@@ -301,6 +322,9 @@ class KnowledgeService:
         RETURN n.uuid_hash AS nodeId
         ORDER BY nodeId
         """
+        # node_result = [
+        #     {"nodeId": 123}, ...
+        # ]
         nodes_result = self.graph.query(node_query)
 
         # 查詢關係數據
@@ -313,22 +337,26 @@ class KnowledgeService:
             connectionCount AS weight
         ORDER BY sourceNodeId, targetNodeId
         """
+        # relationships_result = [
+        #     {"sourceNodeId": 123, "targetNodeId": 456, "relationshipType": "RELATE", "weight": 1}, ...
+        # ]
         relationships_result = self.graph.query(relationship_query)
 
         # 將結果轉換為 Pandas DataFrame
         nodes = pd.DataFrame(nodes_result)
         relationships = pd.DataFrame(relationships_result)
-        gds.graph.drop("communities")
+        gds.graph.drop("communities")   # drop 掉子圖
         G = gds.graph.construct(
             "communities",      # Graph name
-            nodes,           # One or more dataframes containing node data
-            relationships,    # One or more dataframes containing relationship data,
+            nodes,              # One or more dataframes containing node data
+            relationships,      # One or more dataframes containing relationship data,
             undirected_relationship_types=["*"]  # Set relationships as undirected
         )
                 
         # node_props = gds.graph.nodeProperties("communities")
         # print(node_props)
         wcc = gds.wcc.stats(G)
+        
         # 進行 wcc 社群偵測/分群演算法
         # 將計算後的「社群資訊」寫入每個 __Entity__ 節點的 communities 屬性中, 可能會有多個社群
         # communities可能會是類似 [0, 10, 42] 這樣的清單：
@@ -361,7 +389,6 @@ class KnowledgeService:
         # 執行查詢
         self.graph.query(write_query, params)
 
-        
         # 建立 Community 節點, 並將 __Entity__ 節點與 Community 節點相連
         self.graph.query("""
         MATCH (e:`__Entity__`)
@@ -629,6 +656,10 @@ class KnowledgeService:
         self.embedding_entities()
         
     def embedding_entities(self):
+        """
+        對 entity node 的 property (id, description) 進行 embedding
+        然後儲存在 property embedding 裏面
+        """
         TwlfNeo4jVector.from_existing_graph(
             self.embedding,
             index_name='embedding',
@@ -638,15 +669,20 @@ class KnowledgeService:
         )
         
     def get_builded_task_graph(self, tasks: list[FileTask]) -> dict[FileTask, tuple[SimpleGraph, list[GraphDocument]]]:
+        """
+        根據 DB 資料, 將既有資料的 entity graph & simple graph json 從 minio 下載並讀取 
+        """
         result: dict[FileTask, tuple[SimpleGraph, list[GraphDocument]]] = {}
         for task in tasks:
             if task.status in [FileTask.FileStatus.REFINED_PENDING, FileTask.FileStatus.REFINING_KNOWLEDGE, 
                                 FileTask.FileStatus.SUMMARIZING, FileTask.FileStatus.COMPLETED] and task.user_operate is None:
                 entity_graph_list: list[dict] = minio_service.download_user_uploaded_metadata_from_minio_as_dict(task, MinioService.USER_UPLOADED_METADATA_TYPE.ENTITY_GRAPH_LIST)
+                entity_graph_documents: list[GraphDocument] = [dict_to_graph_document(graph_document) for graph_document in entity_graph_list]
+                
                 simple_graph_dict: dict = minio_service.download_user_uploaded_metadata_from_minio_as_dict(task, MinioService.USER_UPLOADED_METADATA_TYPE.SIMPLE_GRAPH)
-                graph_documents: list[GraphDocument] = [dict_to_graph_document(graph_document) for graph_document in entity_graph_list]
                 simple_graph: SimpleGraph = SimpleGraph.from_dict(simple_graph_dict)
-                result[task] = ((simple_graph, graph_documents))
+                
+                result[task] = ((simple_graph, entity_graph_documents))
         return result
     
     def remove_all_entities_and_commnuities(self):
@@ -813,3 +849,4 @@ class KnowledgeService:
         }
 
         return differences
+    

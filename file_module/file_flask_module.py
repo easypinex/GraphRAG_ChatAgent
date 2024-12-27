@@ -88,10 +88,12 @@ def delete_file(file_id: int):
         return jsonify(FlaskErrorDict(error = "File task not found")), 404
     if file_task.status == FileTask.FileStatus.GRAPH_PROCESSING:
         return jsonify(FlaskErrorDict(error = "System Processing.. Please try late...")), 400
+    
     dataflow_manager_instance._knowledge_service.remove_document_chain(file_id)
     dataflow_manager_instance._knowledge_service.remove_standalone_node()
     file_task.user_operate = FileTask.UserOperate.DELETE
     db_session.commit()
+
     return jsonify(FileUploadSuccessDict(message = "File Delete successfully", file_id=file_id))
 
     

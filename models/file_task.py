@@ -13,6 +13,7 @@ from sqlalchemy.types import Enum as SQLAlchemyEnum  # 使用別名以區分 SQL
 from sqlalchemy.ext.declarative import declarative_base
 from models import Base  # 引用全局 Base
 
+
 class FileTask(ModelSerialization, Base):
     class FileStatus(str, Enum):
         PENDING = "PENDING" # 檔案剛上傳, 準備建立Graph
@@ -32,10 +33,12 @@ class FileTask(ModelSerialization, Base):
     __tablename__ = 'file_tasks'
     
     id = Column(Integer, primary_key=True)
+    # 檔案上傳 server 時的 temp folder path
     filedir = Column(Unicode(256), nullable=True)
     filename = Column(Unicode(256), nullable=False)
     status = Column(SQLAlchemyEnum(FileStatus), nullable=False, default=FileStatus.PENDING)
     last_updated = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    # 檔案上傳 minio 時的 folder path
     minio_dir = Column(Unicode(256), nullable=True)
     user_operate = Column(SQLAlchemyEnum(UserOperate), nullable=True, default=None)
     
@@ -43,7 +46,7 @@ class FileTask(ModelSerialization, Base):
         dict = super().to_dict()
         dict['last_updated'] = self.last_updated.isoformat()  # 格式化時間
         return dict
-        
+    
     @property
     def file_path(self):
         if self.filedir is not None:
@@ -83,3 +86,4 @@ if __name__ == '__main__':
     recover_task = FileTask.load_from_json(json_str)
     recover_task_str = json.dumps(recover_task.to_dict(), indent=2)
     print(recover_task_str)
+    
