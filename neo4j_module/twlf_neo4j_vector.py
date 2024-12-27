@@ -352,15 +352,21 @@ def _get_search_index_query(
     additional_where_cypher = kwargs.get("additional_where_cypher", "") ## TWLF 新增
     if index_type == IndexType.NODE:
         if search_type == SearchType.VECTOR:
-            additional_query = ""
             if additional_match_cypher or additional_where_cypher:
-                additional_query =  (
-                    f"{additional_match_cypher}"
-                    f" {additional_where_cypher} "
-                    " WITH collect(n) AS nodes "
-                    " UNWIND nodes AS filteredNode "
-                )
-            return additional_query + (
+                return f"""
+        {additional_match_cypher}
+        {additional_where_cypher}
+        WITH collect(n) AS allFilteredNodes
+        CALL {{
+            WITH allFilteredNodes
+            CALL db.index.vector.queryNodes($index, 100 * $ef, $embedding)
+            YIELD node, score
+            WHERE node IN allFilteredNodes
+            RETURN node, score
+            LIMIT $k 
+        }}
+        """
+            return (
                 "CALL db.index.vector.queryNodes($index, $k * $ef, $embedding) "
                 "YIELD node, score "
                 "WITH node, score LIMIT $k "

@@ -133,37 +133,39 @@ if __name__ == "__main__":
     dynamic_retriver = FileFilterRetriever(retriever)
     print(dynamic_retriver.invoke({
                                     "question": "台灣人壽",
-                                    "fileIds": ["bbe9f0d5-a3a3-49c2-92e7-07367d14ebd1"],
-                                    # "fileIds": None
+                                    "inputs": {
+                                        "fileIds": [1],
+                                        # "fileIds": None
+                                    }
                                 }))
-    vectorstore: Neo4jVector = TwlfNeo4jVector.from_existing_graph(
-                                    embedding=embedding, 
-                                    index_name="chunk_index",
-                                    node_label='__Chunk__', 
-                                    embedding_node_property='embedding', 
-                                    text_node_properties=['content'])
-    vector_retriever = vectorstore.as_retriever(
-        search_type="similarity_score_threshold",
-        search_kwargs={'score_threshold': 0.9},
-        tags=['RAG']
-    )
-    vector_retriever = FileFilterRetriever(vector_retriever)
-    print(vector_retriever.invoke({
-        "question": """乳房手術項目給付比例如下：
+    # vectorstore: Neo4jVector = TwlfNeo4jVector.from_existing_graph(
+    #                                 embedding=embedding, 
+    #                                 index_name="chunk_index",
+    #                                 node_label='__Chunk__', 
+    #                                 embedding_node_property='embedding', 
+    #                                 text_node_properties=['content'])
+#     vector_retriever = vectorstore.as_retriever(
+#         search_type="similarity_score_threshold",
+#         search_kwargs={'score_threshold': 0.9},
+#         tags=['RAG']
+#     )
+#     vector_retriever = FileFilterRetriever(vector_retriever)
+#     print(vector_retriever.invoke({
+#         "question": """乳房手術項目給付比例如下：
 
-1. 單純乳房切除術(單側) 給付比例為 12%
-2. 單純乳房切除術(雙側) 給付比例為 17%
-3. 乳癌根治切除術(單側) 給付比例為 27%
-4. 乳癌根治切除術(雙側) 給付比例為 39%
-附表三：放射線治療項目及費用表
+# 1. 單純乳房切除術(單側) 給付比例為 12%
+# 2. 單純乳房切除術(雙側) 給付比例為 17%
+# 3. 乳癌根治切除術(單側) 給付比例為 27%
+# 4. 乳癌根治切除術(雙側) 給付比例為 39%
+# 附表三：放射線治療項目及費用表
 
-放射線治療項目給付比例如下：
+# 放射線治療項目給付比例如下：
 
-1. 照射治療規劃及劑量（每次）：7%
-2. 初步或定位照相（每張）：2%
-3. 鈷六十照射（每次）：3%
-4. 直線加速器照射治療（每次）：5%""",
-        "inputs": {
-            "fileIds": ["bbe9f0d5-a3a3-49c2-92e7-07367d14ebd1"],
-        }
-    }))
+# 1. 照射治療規劃及劑量（每次）：7%
+# 2. 初步或定位照相（每張）：2%
+# 3. 鈷六十照射（每次）：3%
+# 4. 直線加速器照射治療（每次）：5%""",
+#         "inputs": {
+#             "fileIds": ["bbe9f0d5-a3a3-49c2-92e7-07367d14ebd1"],
+#         }
+#     }))
