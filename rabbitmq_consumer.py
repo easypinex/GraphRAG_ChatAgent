@@ -17,17 +17,17 @@ async def process_message(message):
 
             if task_type == QueueTaskDict.TaskType.FILE_READ:
                 msg = FileTask.load_from_json(msg)
-                await dataflow_manager_instance.received_file_task(msg)
+                dataflow_manager_instance.received_file_task(msg)
             elif task_type == QueueTaskDict.TaskType.ENTITY_BUILD:
                 msg = json.loads(msg)
                 simple_graph: SimpleGraph = SimpleGraph.from_dict(msg)
-                await dataflow_manager_instance.received_entity_task(simple_graph)
+                dataflow_manager_instance.received_entity_task(simple_graph)
             elif task_type == QueueTaskDict.TaskType.COMMNUITY_BUILD:
-                await dataflow_manager_instance.received_refine_task(task)
+                dataflow_manager_instance.received_refine_task(task)
             elif task_type == QueueTaskDict.TaskType.RESTORE_NEO4J:
-                await dataflow_manager_instance.received_restore_neo4j(msg)
+                dataflow_manager_instance.received_restore_neo4j(msg)
             elif task_type == QueueTaskDict.TaskType.BACKUP_NEO4J:
-                await dataflow_manager_instance.received_backup_neo4j()
+                dataflow_manager_instance.received_backup_neo4j()
             else:
                 print(f" [x] Unknown task type: {task_type}")
         except Exception as e:
