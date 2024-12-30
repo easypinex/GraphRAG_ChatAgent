@@ -88,9 +88,9 @@ class DataflowService:
         pages = self._file_service.read_file(file_path, load_kwargs=read_file_kwargs)
 
         # 建立基本圖
-        # simple_graph: SimpleGraph = self._graph_builder.build_chunk_graph_with_parent_child([pages], document_additional_properties=document_additional_properties)
+        simple_graph: SimpleGraph = self._graph_builder.build_chunk_graph_with_parent_child([pages], document_additional_properties=document_additional_properties)
         
-        return None
+        return simple_graph
     
     def received_entity_task(self, simple_graph: SimpleGraph):
         """
