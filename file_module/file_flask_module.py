@@ -14,7 +14,7 @@ from flask import request, jsonify, Blueprint, current_app
 from models.file_task import FileTask
 from dto.file_upload_success import FileUploadSuccessDict
 from dto.flask_error import FlaskErrorDict
-from dataflow_module.rabbitmq_sender import publish_queue_message_sync
+from dataflow_module.rabbitmq_sender import publish_queue_message
 from dataflow_module.dataflow_service import dataflow_manager_instance
 from database import db_session
 
@@ -61,7 +61,7 @@ def upload_files():
                 task_type=QueueTaskDict.TaskType.FILE_READ,
                 msg=json.dumps(new_file_task.to_dict())
             )
-            publish_queue_message_sync(queue_task)
+            publish_queue_message(queue_task)
             
             file_ids.append(new_file_task.id)
         except Exception as e:

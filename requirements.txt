@@ -30,7 +30,7 @@ flask
 flask-cors
 flask-sqlalchemy
 pyodbc
-aio_pika
+pika
 apscheduler
 flask_apscheduler
 pymssql
