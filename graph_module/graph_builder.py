@@ -259,7 +259,7 @@ class GraphBuilder:
         combined_chunk_document_list = self._get_combined_chunks(chunk_id_with_chunk_doc_list)
 
         # 輸入 [Document] 取得 [GraphDocument] 代表每個 Chunk 提取出來的 Entity
-        entity_graph_document_list = self._get_graph_document_list(llm, combined_chunk_document_list, allowedNodes, allowedRelationship, max_retry=0)
+        entity_graph_document_list = self._get_graph_document_list_from_llm(llm, combined_chunk_document_list, allowedNodes, allowedRelationship, max_retry=0)
 
         # 清理 不存在/不合理 的 Relationship (根據 source, target 是否存在於 nodes)
         self._clean_not_exists_rel(entity_graph_document_list)
@@ -314,7 +314,7 @@ class GraphBuilder:
             )
         return combined_chunk_document_list
 
-    def _get_graph_document_list(
+    def _get_graph_document_list_from_llm(
         self, llm, combined_chunk_document_list: List[Document], allowedNodes, allowedRelationship, max_retry=0
     ) -> List[GraphDocument]:
         """
@@ -371,7 +371,7 @@ class GraphBuilder:
 
         # 假如有失敗的 chunk 且 max_retry > 0, 則重新嘗試
         if len(failed_documents) > 0 and max_retry > 0:
-            graph_document_list += self._get_graph_document_list(llm, failed_documents, allowedNodes, allowedRelationship, max_retry-1)
+            graph_document_list += self._get_graph_document_list_from_llm(llm, failed_documents, allowedNodes, allowedRelationship, max_retry-1)
         
         return graph_document_list
 
