@@ -709,13 +709,6 @@ class KnowledgeService:
         MATCH (d:__Document__ {{file_task_id: {file_task_id}}})
         OPTIONAL MATCH (d)-[]-(p:__Parent__)
         OPTIONAL MATCH (p)-[]-(c:__Chunk__)
-        OPTIONAL MATCH (c)-[]-(e:__Entity__)
-        OPTIONAL MATCH (e)-[]-(m:__Community__)
-
-        // 將找到的 Entity 與 Community 節點標註 reset = true
-        SET e.reset = true
-        SET m.reset = true
-
         // 刪除 Document、Parent、Chunk 節點
         DETACH DELETE d, p, c
     """)

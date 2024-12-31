@@ -96,4 +96,8 @@ def delete_file(file_id: int):
 
     return jsonify(FileUploadSuccessDict(message = "File Delete successfully", file_id=file_id))
 
-    
+## 提供可用的 file_task API
+@file_module.route('/available_files', methods=['GET'])
+def get_available_files():
+    file_tasks = db_session.query(FileTask).filter(FileTask.status == FileTask.FileStatus.COMPLETED).all()
+    return jsonify([file_task.to_dict() for file_task in file_tasks])
