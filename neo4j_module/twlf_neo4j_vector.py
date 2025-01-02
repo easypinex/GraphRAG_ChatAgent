@@ -69,6 +69,7 @@ class TwlfNeo4jVector(Neo4jVector):
                 "node {.*, `"
                 + embedding_node_property
                 + "`: Null, id: Null, "
+                + "fileIds: fileTaskId," # TWLF 新增
                 + ", ".join([f"`{prop}`: Null" for prop in text_node_properties])
                 + "} AS metadata, score"
             )
@@ -128,7 +129,7 @@ class TwlfNeo4jVector(Neo4jVector):
                 "AND any(k in $props WHERE n[k] IS NOT null) "
                 f"RETURN elementId(n) AS id, reduce(str='',"
                 "k IN $props | str + '\\n' + k + ':' + coalesce(n[k], '')) AS text "
-                "LIMIT 500" # > 只調整這裡!! 1000 > 500
+                "LIMIT 500" # > 只調整這裡!! 1000 > 500 # TWLF 新增
             )
             data = store.query(fetch_query, params={"props": text_node_properties})
             if not data:
@@ -152,7 +153,7 @@ class TwlfNeo4jVector(Neo4jVector):
                 params=params,
             )
             # If embedding calculation should be stopped
-            if len(data) < 500: # > 只調整這裡!! 1000 > 500
+            if len(data) < 500: # > 只調整這裡!! 1000 > 500 # TWLF 新增
                 break
         return store
 
@@ -352,26 +353,36 @@ def _get_search_index_query(
     additional_where_cypher = kwargs.get("additional_where_cypher", "") ## TWLF 新增
     if index_type == IndexType.NODE:
         if search_type == SearchType.VECTOR:
-            if additional_match_cypher or additional_where_cypher:
+            if additional_match_cypher and additional_where_cypher:
                 return f"""
-        {additional_match_cypher}
-        {additional_where_cypher}
-        WITH collect(n) AS allFilteredNodes
-        CALL {{
-            WITH allFilteredNodes
-            CALL db.index.vector.queryNodes($index, 100 * $ef, $embedding)
-            YIELD node, score
-            WHERE node IN allFilteredNodes
-            RETURN node, score
-            ORDER BY score DESC
-            LIMIT $k 
-        }}
-        """
-            return (
-                "CALL db.index.vector.queryNodes($index, $k * $ef, $embedding) "
-                "YIELD node, score "
-                "WITH node, score LIMIT $k "
-            )
+{additional_match_cypher}
+{additional_where_cypher}
+WITH collect(DISTINCT n) AS allFilteredNodes, d.file_task_id AS fileTaskId
+CALL {{
+    WITH allFilteredNodes
+    CALL db.index.vector.queryNodes($index, 100 * $ef, $embedding)
+    YIELD node, score
+    WHERE node IN allFilteredNodes
+    RETURN node, score
+    ORDER BY score DESC
+    LIMIT $k 
+}}
+"""
+            elif additional_match_cypher:
+                return (
+                    "CALL db.index.vector.queryNodes($index, $k * $ef, $embedding)"
+                    "YIELD node, score "
+                    f"{additional_match_cypher} "
+                    "WITH DISTINCT node, score, d.file_task_id AS fileTaskId "
+                    "LIMIT $k "
+                )
+            else:
+                return (
+                        "CALL db.index.vector.queryNodes($index, $k * $ef, $embedding) "
+                        "YIELD DISTINCT node, score "
+                        "WITH node, score LIMIT $k "
+                )
+            
             ## ---------- TWLF 新增 End ----------
         elif search_type == SearchType.HYBRID:
             call_prefix = "CALL () { " if neo4j_version_is_5_23_or_above else "CALL { "

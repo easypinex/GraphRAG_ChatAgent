@@ -13,57 +13,76 @@ from neo4j_module.twlf_neo4j_vector import TwlfNeo4jVector
 
 def get_localsearch_vectorstore(embedding) -> TwlfNeo4jVector:
     lc_retrieval_query = """
-        // MATCH (n:__Entity__) WITH collect(n) AS nodes return nodes
-        WITH collect(node) as nodes
-        WITH
-        collect {
-            UNWIND nodes as n
-            MATCH (n)<-[:HAS_ENTITY]->(c:__Chunk__)<-[:HAS_CHILD]->(p:__Parent__)-[:PART_OF]->(d:__Document__)
-            WHERE $fileIds IS NULL OR d.file_task_id IN $fileIds
-            WITH c, p, count(distinct n) as freq
-            RETURN {content: p.content, source: p.source} AS chunkText
-            ORDER BY freq DESC
-            LIMIT $topChunks
-        } AS text_mapping,
-        // Entity - Report Mapping
-        collect {
-            UNWIND nodes as n
-            MATCH (n)-[:IN_COMMUNITY*]->(c:__Community__)
-            WHERE c.summary is not null
-            WITH c, c.rank as rank, c.weight AS weight
-            RETURN c.summary 
-            ORDER BY rank, weight DESC
-            LIMIT $topCommunities
-        } AS report_mapping,
-        // Outside Relationships 
-        collect {
-            UNWIND nodes as n
-            MATCH (n)-[r]-(m) 
-            WHERE NOT m IN nodes and r.description is not null
-            RETURN {description: r.description, sources: r.sources} AS descriptionText
-            ORDER BY r.rank DESC, r.weight DESC 
-            LIMIT $topOutsideRels
-        } as outsideRels,
-        // Inside Relationships 
-        collect {
-            UNWIND nodes as n
-            MATCH (n)-[r]-(m) 
-            WHERE m IN nodes and r.description is not null
-            RETURN {description: r.description, sources: r.sources} AS descriptionText
-            ORDER BY r.rank DESC, r.weight DESC 
-            LIMIT $topInsideRels
-        } as insideRels,
-        // Entities description
-        collect {
-            UNWIND nodes as n
-            match (n)
-            WHERE n.description is not null
-            RETURN {description: n.description, sources: n.sources} AS descriptionText
-        } as entities
-        // We don't have covariates or claims here
-        RETURN {Chunks: text_mapping, Reports: report_mapping, 
-            Relationships: outsideRels + insideRels, 
-            Entities: entities} AS text, 1.0 AS score, {} AS metadata
+// "CALL db.index.vector.queryNodes($index, $k * $ef, $embedding) "
+// "YIELD node, score "
+// "WITH node, score LIMIT $k "
+// 1) 先 collect 好所有的 nodes 並收集對應的 fileIds
+WITH collect(node) AS nodes
+MATCH (node)<-[:HAS_ENTITY]-(c:__Chunk__)<-[:HAS_CHILD]-(p:__Parent__)-[:PART_OF]-(d:__Document__)
+WHERE $fileIds IS NULL OR d.file_task_id IN $fileIds
+WITH nodes, collect(DISTINCT d.file_task_id) AS docIds
+
+// 2) 以下才進入原本的子查詢區塊。
+//   注意這裡每個 collect { ... } 都要在同一個 WITH 流程下，
+//   或者使用多段 WITH 依序聚合都可以，關鍵是最後要把 docIds 留到最後。
+WITH
+    // Chunks
+    collect {
+        UNWIND nodes AS n
+        MATCH (n)<-[:HAS_ENTITY]-(c:__Chunk__)<-[:HAS_CHILD]-(p:__Parent__)-[:PART_OF]-(d:__Document__)
+        WHERE $fileIds IS NULL OR d.file_task_id IN $fileIds
+        WITH c, p, count(distinct n) as freq
+        RETURN  p.content AS chunkText
+        ORDER BY freq DESC
+        LIMIT $topChunks
+    } AS text_mapping,
+    // Entity - Report Mapping
+    collect {
+        UNWIND nodes AS n
+        MATCH (n)-[:IN_COMMUNITY*]->(com:__Community__)
+        WHERE com.summary IS NOT NULL
+        WITH com, com.rank AS rank, com.weight AS weight
+        RETURN com.summary
+        ORDER BY rank, weight DESC
+        LIMIT $topCommunities
+    } AS report_mapping,
+    // Outside Relationships
+    collect {
+        UNWIND nodes AS n
+        MATCH (n)-[r]-(m)
+        WHERE NOT m IN nodes AND r.description IS NOT NULL
+        RETURN r.description AS descriptionText
+        ORDER BY r.rank DESC, r.weight DESC
+        LIMIT $topOutsideRels
+    } AS outsideRels,
+    // Inside Relationships
+    collect {
+        UNWIND nodes AS n
+        MATCH (n)-[r]-(m)
+        WHERE m IN nodes AND r.description IS NOT NULL
+        RETURN r.description AS descriptionText
+        ORDER BY r.rank DESC, r.weight DESC
+        LIMIT $topInsideRels
+    } AS insideRels,
+    // Entities description
+    collect {
+        UNWIND nodes AS n
+        MATCH (n)
+        WHERE n.description IS NOT NULL
+        RETURN n.description AS descriptionText
+    } AS entities,
+    docIds   // 這裡把前面收集的 docIds 一起帶下來
+RETURN
+{
+    // 這裡的 text 是輸出的主要內容
+    Chunks: text_mapping,
+    Reports: report_mapping,
+    Relationships: outsideRels + insideRels,
+    Entities: entities
+} AS text,
+1.0 AS score,
+// 這裡就是我們要在 metadata 裡面帶出所有出現的 fileId
+{ fileIds: docIds } AS metadata
     """
 
     vectorstore = TwlfNeo4jVector.from_existing_graph(embedding=embedding, 
@@ -98,14 +117,14 @@ def get_baseline_vectorstore(embedding) -> TwlfNeo4jVector:
                                         text_node_properties=['content'])
     return vectorstore
 
-def get_baseline_retriever(embedding) -> TwlfNeo4jVector:
+def get_baseline_retriever(embedding, score_threshold: float = 0.9) -> TwlfNeo4jVector:
     vectorstore: Neo4jVector = get_baseline_vectorstore(embedding)
     vector_retriever = vectorstore.as_retriever(
         search_type="similarity_score_threshold",
-        search_kwargs={'score_threshold': 0.9},
-        tags=['RAG']
+        search_kwargs={'score_threshold': score_threshold},
+        tags=['BaselineRAG']
     )
-    baseline_retriever = FileFilterRetriever(vector_retriever)
+    baseline_retriever = FileFilterRetriever(vector_retriever, node_label='__Chunk__')
     return baseline_retriever
 
 if __name__ == "__main__":
@@ -116,56 +135,23 @@ if __name__ == "__main__":
         azure_deployment='text-embedding-3-small',
         openai_api_version='2023-05-15'
     )
-    vectorstore = get_localsearch_vectorstore(embedding)
-    search_params = LocalSearchParamsDict.default()
-    search_params['fileIds'] = ['1'] # 這裡特別設置不存在的檔案名稱, 後續驗證更新
-    topEntities = 3
-
-    retriever = vectorstore.as_retriever(
-        search_type="similarity_score_threshold",
-        search_kwargs={
-                        'score_threshold': 0.9,
-                        'k': topEntities,
-                        'params': search_params
-                    },
-        tags=['GraphRAG']
-    )
-    dynamic_retriver = FileFilterRetriever(retriever)
-    print(dynamic_retriver.invoke({
-                                    "question": "台灣人壽",
-                                    "inputs": {
-                                        "fileIds": [1],
-                                        # "fileIds": None
-                                    }
-                                }))
-    # vectorstore: Neo4jVector = TwlfNeo4jVector.from_existing_graph(
-    #                                 embedding=embedding, 
-    #                                 index_name="chunk_index",
-    #                                 node_label='__Chunk__', 
-    #                                 embedding_node_property='embedding', 
-    #                                 text_node_properties=['content'])
-#     vector_retriever = vectorstore.as_retriever(
-#         search_type="similarity_score_threshold",
-#         search_kwargs={'score_threshold': 0.9},
-#         tags=['RAG']
-#     )
-#     vector_retriever = FileFilterRetriever(vector_retriever)
-#     print(vector_retriever.invoke({
-#         "question": """乳房手術項目給付比例如下：
-
-# 1. 單純乳房切除術(單側) 給付比例為 12%
-# 2. 單純乳房切除術(雙側) 給付比例為 17%
-# 3. 乳癌根治切除術(單側) 給付比例為 27%
-# 4. 乳癌根治切除術(雙側) 給付比例為 39%
-# 附表三：放射線治療項目及費用表
-
-# 放射線治療項目給付比例如下：
-
-# 1. 照射治療規劃及劑量（每次）：7%
-# 2. 初步或定位照相（每張）：2%
-# 3. 鈷六十照射（每次）：3%
-# 4. 直線加速器照射治療（每次）：5%""",
-#         "inputs": {
-#             "fileIds": ["bbe9f0d5-a3a3-49c2-92e7-07367d14ebd1"],
-#         }
-#     }))
+    # localsearch_retriever = get_localsearch_retriever(embedding)
+    # print(localsearch_retriever.invoke({
+    #                                 "question": "台灣人壽",
+    #                                 "inputs": {
+    #                                     "fileIds": [1],
+    #                                     # "fileIds": None
+    #                                 }
+    #                             }))
+    
+    
+    baseline_retriever: TwlfNeo4jVector = get_baseline_retriever(embedding, 0.9)
+    print(baseline_retriever.invoke({
+        "question": """主契約效力停止時，要保人不得單獨申請恢復本附約之效力。
+基於保戶服務，本公司於保險契約停止效力後至得申請復效之期限屆滿前三個月，將以書面、電子郵件、簡訊或其
+他約定方式擇一通知要保人有行使申請復效之權利，並載明要保人未於約定期限屆滿前恢復保單效力者，契約效力
+將自約定期限屆滿之日翌日上午零時起終""",
+        "inputs": {
+            "fileIds": [1],
+        }
+    }))

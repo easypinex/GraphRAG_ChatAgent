@@ -16,8 +16,9 @@ class FileFilterRetriever(Runnable):
     configurable = {
         "fileIds": []
     }
-    def __init__(self, retriever: VectorStoreRetriever):
+    def __init__(self, retriever: VectorStoreRetriever, node_label="__Entity__"):
         self.retriever: VectorStoreRetriever = retriever
+        self.node_label = node_label
 
     def update_params(self, new_params):
         """動態更新 retriever 的 search_kwargs['params']"""
@@ -40,11 +41,15 @@ class FileFilterRetriever(Runnable):
         if fileIds is None or len(fileIds) == 0:
             fileIds = None
         update_search_kwargs = {
-            "additional_match_cypher": "MATCH (n:__Entity__)<-[:HAS_ENTITY]-(c:__Chunk__)<-[:HAS_CHILD]-(p:__Parent__)-[:PART_OF]->(d:__Document__)",
-            'additional_where_cypher': "WHERE $fileIds IS NULL OR d.file_task_id IN $fileIds"
+            'additional_where_cypher': "WHERE $fileIds IS NULL OR d.file_task_id IN $fileIds",
         }
+        if self.node_label == '__Chunk__':
+            match_cypher = "MATCH (n:__Chunk__)<-[:HAS_CHILD]-(p:__Parent__)-[:PART_OF]->(d:__Document__)"
+        elif self.node_label == '__Entity__':
+            match_cypher = "MATCH (n:__Entity__)<-[:HAS_ENTITY]-(c:__Chunk__)<-[:HAS_CHILD]-(p:__Parent__)-[:PART_OF]->(d:__Document__)"
+
+        update_search_kwargs['additional_match_cypher'] = match_cypher
         if not fileIds:
-            update_search_kwargs['additional_match_cypher'] = None
             update_search_kwargs['additional_where_cypher'] = None
         
         self.update_params({"fileIds": fileIds})
