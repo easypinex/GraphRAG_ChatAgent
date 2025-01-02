@@ -109,5 +109,8 @@ class MinioService:
         
         return communities, summaries, duplicate_nodes
         
+    def get_file_share_link(self, filepath: str) -> str:
+        return self._mini_client.get_share_link_for_file(self._bucket, filepath)
+
                 
 minio_service = MinioService()

@@ -11,6 +11,8 @@ from chat_agent_module.file_filter_retriever import FileFilterRetriever
 from chat_agent_module.search_params import LocalSearchParamsDict
 from neo4j_module.twlf_neo4j_vector import TwlfNeo4jVector
 
+from chat_agent_module.file_metadata_retriever import FileMetadataRetriever
+
 def get_localsearch_vectorstore(embedding) -> TwlfNeo4jVector:
     lc_retrieval_query = """
 // "CALL db.index.vector.queryNodes($index, $k * $ef, $embedding) "
@@ -106,6 +108,7 @@ def get_localsearch_retriever(embedding) -> TwlfNeo4jVector:
         tags=['GraphRAG']
     )
     local_search_retriever = FileFilterRetriever(local_search_retriever)
+    local_search_retriever = FileMetadataRetriever(local_search_retriever)
     return local_search_retriever
 
 def get_baseline_vectorstore(embedding) -> TwlfNeo4jVector:
@@ -125,6 +128,7 @@ def get_baseline_retriever(embedding, score_threshold: float = 0.9) -> TwlfNeo4j
         tags=['BaselineRAG']
     )
     baseline_retriever = FileFilterRetriever(vector_retriever, node_label='__Chunk__')
+    baseline_retriever = FileMetadataRetriever(baseline_retriever)
     return baseline_retriever
 
 if __name__ == "__main__":
@@ -139,7 +143,7 @@ if __name__ == "__main__":
     # print(localsearch_retriever.invoke({
     #                                 "question": "台灣人壽",
     #                                 "inputs": {
-    #                                     "fileIds": [1],
+    #                                     # "fileIds": [1],
     #                                     # "fileIds": None
     #                                 }
     #                             }))
@@ -152,6 +156,6 @@ if __name__ == "__main__":
 他約定方式擇一通知要保人有行使申請復效之權利，並載明要保人未於約定期限屆滿前恢復保單效力者，契約效力
 將自約定期限屆滿之日翌日上午零時起終""",
         "inputs": {
-            "fileIds": [1],
+            # "fileIds": [1],
         }
     }))

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from minio import Minio
 from minio.error import S3Error
 from io import BytesIO
@@ -152,6 +153,10 @@ class MinioClient:
         except Exception as e:
             print(f"Unexpected error: {e}")
             return False
+        
+    def get_share_link_for_file(self, bucket: str, file_path: str, expiration_in_minutes: int = 120) -> str:
+        url = self.client.get_presigned_url("GET", bucket, file_path, expires=timedelta(minutes=expiration_in_minutes))
+        return url
         
     def list_files(self, bucket: str, prefix: str = "") -> list[str]:
         return [obj.object_name for obj in self.client.list_objects(bucket, prefix=prefix, recursive=False)]

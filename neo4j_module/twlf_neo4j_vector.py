@@ -63,15 +63,12 @@ class TwlfNeo4jVector(Neo4jVector):
             )
         # Prefer retrieval query from params, otherwise construct it
         if not retrieval_query:
-            additional_match_cypher = kwargs.get("additional_match_cypher", "") ## TWLF 新增
-            fileIds_cypher = 'fileIds: fileTaskId,' if additional_match_cypher else ""  # TWLF 新增
             retrieval_query = (
                 f"RETURN reduce(str='', k IN {text_node_properties} |"
                 " str + '\\n' + k + ': ' + coalesce(node[k], '')) AS text, "
                 "node {.*, `"
                 + embedding_node_property
                 + "`: Null, id: Null, "
-                + fileIds_cypher # TWLF 新增
                 + ", ".join([f"`{prop}`: Null" for prop in text_node_properties])
                 + "} AS metadata, score"
             )
@@ -276,7 +273,7 @@ class TwlfNeo4jVector(Neo4jVector):
                     f"node {{.*, `{self.text_node_property}`: Null, "
                     f"`{self.embedding_node_property}`: Null, id: Null }} AS metadata"
                 )
-
+        self.retrieval_query = kwargs.get("retrieval_query", self.retrieval_query) # TWLF 新增
         retrieval_query = (
             self.retrieval_query if self.retrieval_query else default_retrieval
         )
