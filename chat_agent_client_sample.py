@@ -38,10 +38,10 @@ for event in client.events():
     tags = data['tags']
     in_data = data.get('data')
     file_datas = []
-    outputs: list[dict] = in_data.get('output') if in_data is not None and in_data.get('output') else []
     # print(f'event: {event}, name: {name}, tags: {tags}, data:{data}')
     # print('-' * 40)
     if name == 'RunnableSequence':
+        outputs: list[dict] = in_data.get('output') if in_data is not None and in_data.get('output') else []
         for output in outputs:
             if isinstance(output, dict):
                 metadatas: list[dict] = [output.get('metadata') for output in outputs] if outputs is not None else []
