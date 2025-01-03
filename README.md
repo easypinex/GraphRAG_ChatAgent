@@ -17,7 +17,7 @@
    * 若您想要理解整個應用的資料流，推薦首先參考 dataflow_module/dataflow_service.py 的 main function, 或是該檔案從頭看到尾也可以(一開始不建議觀看其他檔案呼叫方法!)
    * 接著搭配 test/test_data/serialization/*.json 了解資料結構, 對整體流程了解會有很大的幫助!
    * 對於任務流程， rabbitmq_consumer.py 進行很好的任務接收概述!
-   * 大致架構參考資料: https://neo4j.com/developer-blog/global-graphrag-neo4j-langchain/
+   * 大致架構參考資料: [Implementing ‘From Local to Global’ GraphRAG with Neo4j and LangChain: Constructing the Graph](https://neo4j.com/developer-blog/global-graphrag-neo4j-langchain/)、[Integrating Microsoft GraphRAG into Neo4j](https://neo4j.com/developer-blog/microsoft-graphrag-neo4j/)
 
 ## 理解詢問(查詢)
    * 對於理解問題如何查詢資料庫以及如何與LLM進行合作運行聊天應用, 請參考 chat_agent.py
