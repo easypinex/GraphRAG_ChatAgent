@@ -25,3 +25,25 @@
 ## 了解如何呼叫進行聊天
    * 注意！串接聊天模型需要對 SSE(Server-Sent Events) 事件流 有基本的概念與了解
    * 前端人員要了解如何呼叫聊天應用 請參考 chat_agent_client_sample.py
+
+
+
+## 資料庫備份
+```sh
+mkdir backup
+docker run --rm \
+  -v ./neo4j/data:/data \
+  -v ./backup:/backup \
+  neo4j:5.22.0 \
+  neo4j-admin database dump neo4j --to-path=/backup
+```
+
+## 資料庫還原
+
+```sh
+docker run --rm \
+  -v ./neo4j/data:/data \
+  -v ./backup:/backup \
+  neo4j:5.22.0 \
+  neo4j-admin database load neo4j --from-path=/backup --overwrite-destination
+```

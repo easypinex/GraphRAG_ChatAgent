@@ -9,16 +9,21 @@ if __name__ == "__main__":
 from langchain.schema.runnable import Runnable
 from langchain_core.vectorstores.base import VectorStoreRetriever
 from langchain_core.documents import Document
+from langchain.schema.runnable import Runnable
 
 from database import db_session
 from minio_module.minio_service import minio_service
 from models.file_task import FileTask
+from chat_agent_module.file_filter_retriever import FileFilterRetriever
 
 class FileMetadataRetriever(Runnable):
     def __init__(self, retriever):
-        self.retriever: VectorStoreRetriever = retriever
+        self.retriever: FileFilterRetriever = retriever
         
     def invoke(self, inputs):
+        return self._get_relevant_documents(inputs)
+    
+    def _get_relevant_documents(self, inputs) -> list[Document]:
         docs: list[Document] = self.retriever.invoke(inputs)
         for doc in docs:
             metadata = doc.metadata
@@ -44,6 +49,11 @@ class FileMetadataRetriever(Runnable):
             if 'fileIds' in metadata:
                 del metadata['fileIds']
         return docs
+    
+    def stream(self, input_data):
+        result = self.invoke(input_data)
+        yield result  # 將最終輸出包裝為事件
+    
 if __name__ == "__main__":
     from chat_agent_module.twlf_vectorstore import get_localsearch_retriever, get_baseline_retriever
     embedding = AzureOpenAIEmbeddings(
@@ -56,6 +66,6 @@ if __name__ == "__main__":
     # minio_retriever = FileMetadataRetriever(local_search_retriever)
     # print(minio_retriever.invoke({"question": "台灣人壽", 'inputs': {}}))
     
-    baseline_retriever = get_baseline_retriever(embedding, 0.9)
+    baseline_retriever = get_baseline_retriever(embedding, 0.8)
     minio_retriever = FileMetadataRetriever(baseline_retriever)
     print(minio_retriever.invoke({"question": "主契約效力停止時，要保人不得單獨申請恢復本附約之效力", 'inputs': {}}))

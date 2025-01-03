@@ -6,11 +6,9 @@ if __name__ == "__main__":
     
 from langchain.schema.runnable import Runnable
 from langchain_core.vectorstores.base import VectorStoreRetriever
+from langchain_core.documents import Document
 
 class FileFilterRetriever(Runnable):
-    configurable = {
-        "fileIds": []
-    }
     def __init__(self, retriever: VectorStoreRetriever, node_label="__Entity__"):
         self.retriever: VectorStoreRetriever = retriever
         self.node_label = node_label
@@ -57,11 +55,14 @@ class FileFilterRetriever(Runnable):
         self.update_search_kwargs(update_search_kwargs)
         
     def invoke(self, inputs, *args, **kwargs):
+        return self._get_relevant_documents(inputs)
+    
+    def _get_relevant_documents(self, inputs: dict) -> list[Document]:
         question = inputs.get("question")
         self._update_params(inputs)
         return self.retriever.invoke(question)
-    
-    async def ainvoke(self, inputs, *args, **kwargs):
-        question = inputs.get("question")
-        self._update_params(inputs)
-        return await self.retriever.ainvoke(question)
+
+    def stream(self, input_data):
+        result = self.invoke(input_data)
+        yield result  # 將最終輸出包裝為事件
+        

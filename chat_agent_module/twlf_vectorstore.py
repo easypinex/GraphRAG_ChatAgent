@@ -127,8 +127,8 @@ def get_baseline_retriever(embedding, score_threshold: float = 0.9) -> TwlfNeo4j
         search_kwargs={'score_threshold': score_threshold},
         tags=['BaselineRAG']
     )
-    baseline_retriever = FileFilterRetriever(vector_retriever, node_label='__Chunk__')
-    baseline_retriever = FileMetadataRetriever(baseline_retriever)
+    baseline_retriever = FileFilterRetriever(retriever=vector_retriever, node_label='__Chunk__')
+    baseline_retriever = FileMetadataRetriever(retriever=baseline_retriever)
     return baseline_retriever
 
 if __name__ == "__main__":
