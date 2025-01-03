@@ -7,24 +7,21 @@ if __name__ == "__main__":
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
     
 from langchain.schema.runnable import Runnable
-from langchain_core.vectorstores.base import VectorStoreRetriever
 from langchain_core.documents import Document
 from langchain.schema.runnable import Runnable
-from langchain_core.retrievers import BaseRetriever
+from langsmith import traceable
 
 from database import db_session
 from minio_module.minio_service import minio_service
 from models.file_task import FileTask
-from chat_agent_module.file_filter_retriever import FileFilterRetriever
 
-class FileMetadataRetriever(BaseRetriever):
-    retriever: FileFilterRetriever
+class FileMetadataSearch(Runnable):
         
-    def invoke(self, inputs):
-        return self._get_relevant_documents(inputs)
+    def invoke(self, docs: list[Document], *args, **kwargs) -> list[Document]:
+        return self.search_docs_metadata(docs)
     
-    def _get_relevant_documents(self, inputs) -> list[Document]:
-        docs: list[Document] = self.retriever.invoke(inputs)
+    @traceable
+    def search_docs_metadata(self, docs: list[Document]) -> list[Document]:
         for doc in docs:
             metadata = doc.metadata
             total_fileIds: list[int] = []
@@ -62,9 +59,10 @@ if __name__ == "__main__":
         azure_deployment='text-embedding-3-small',
         openai_api_version='2023-05-15'
     )
-    # local_search_retriever = get_localsearch_retriever(embedding)
-    # minio_retriever = FileMetadataRetriever(local_search_retriever)
-    # print(minio_retriever.invoke({"question": "台灣人壽", 'inputs': {}}))
+    local_search_retriever = get_localsearch_retriever(embedding)
+    search_metadata_chain = local_search_retriever | FileMetadataSearch()
+    print(search_metadata_chain.invoke({"question": "台灣人壽", 'inputs': {}}))
     
-    baseline_retriever = get_baseline_retriever(embedding, 0.8)
-    print(baseline_retriever.invoke({"question": "主契約效力停止時，要保人不得單獨申請恢復本附約之效力", 'inputs': {}}))
+    # baseline_retriever = get_baseline_retriever(embedding, 0.8)
+    # search_metadata_chain = baseline_retriever | FileMetadataSearch()
+    # print(search_metadata_chain.invoke({"question": "主契約效力停止時，要保人不得單獨申請恢復本附約之效力", 'inputs': {}}))

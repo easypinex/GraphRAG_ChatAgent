@@ -11,7 +11,7 @@ from chat_agent_module.file_filter_retriever import FileFilterRetriever
 from chat_agent_module.search_params import LocalSearchParamsDict
 from neo4j_module.twlf_neo4j_vector import TwlfNeo4jVector
 
-from chat_agent_module.file_metadata_retriever import FileMetadataRetriever
+from chat_agent_module.file_metadata_search import FileMetadataSearch
 
 def get_localsearch_vectorstore(embedding) -> TwlfNeo4jVector:
     lc_retrieval_query = """
@@ -107,8 +107,7 @@ def get_localsearch_retriever(embedding) -> TwlfNeo4jVector:
                     },
         tags=['GraphRAG']
     )
-    local_search_retriever = FileFilterRetriever(local_search_retriever)
-    local_search_retriever = FileMetadataRetriever(local_search_retriever)
+    local_search_retriever = FileFilterRetriever(retriever=local_search_retriever, node_label='__Entity__')
     return local_search_retriever
 
 def get_baseline_vectorstore(embedding) -> TwlfNeo4jVector:
@@ -120,7 +119,7 @@ def get_baseline_vectorstore(embedding) -> TwlfNeo4jVector:
                                         text_node_properties=['content'])
     return vectorstore
 
-def get_baseline_retriever(embedding, score_threshold: float = 0.9, include_metadata: bool = True) -> TwlfNeo4jVector:
+def get_baseline_retriever(embedding, score_threshold: float = 0.9) -> TwlfNeo4jVector:
     vectorstore: Neo4jVector = get_baseline_vectorstore(embedding)
     vector_retriever = vectorstore.as_retriever(
         search_type="similarity_score_threshold",
@@ -128,8 +127,6 @@ def get_baseline_retriever(embedding, score_threshold: float = 0.9, include_meta
         tags=['BaselineRAG']
     )
     baseline_retriever = FileFilterRetriever(retriever=vector_retriever, node_label='__Chunk__')
-    if include_metadata:
-        baseline_retriever = FileMetadataRetriever(retriever=baseline_retriever)
     return baseline_retriever
 
 if __name__ == "__main__":

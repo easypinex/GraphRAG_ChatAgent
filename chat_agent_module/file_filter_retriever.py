@@ -74,6 +74,6 @@ if __name__ == "__main__":
         azure_deployment='text-embedding-3-small',
         openai_api_version='2023-05-15'
     )
-    retriever = get_baseline_retriever(embedding, 0.8, include_metadata=False)
+    retriever = get_baseline_retriever(embedding, 0.8)
     result = retriever.invoke({"question": "主契約效力停止時，要保人不得單獨申請恢復本附約之效力", 'inputs': {}})
     print(result)
