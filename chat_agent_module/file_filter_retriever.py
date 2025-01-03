@@ -4,14 +4,13 @@ import sys
 if __name__ == "__main__":
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
     
-from langchain.schema.runnable import Runnable
 from langchain_core.vectorstores.base import VectorStoreRetriever
 from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 
-class FileFilterRetriever(Runnable):
-    def __init__(self, retriever: VectorStoreRetriever, node_label="__Entity__"):
-        self.retriever: VectorStoreRetriever = retriever
-        self.node_label = node_label
+class FileFilterRetriever(BaseRetriever):
+    retriever: VectorStoreRetriever
+    node_label: str = "__Entity__"
 
     def update_params(self, new_params):
         """動態更新 retriever 的 search_kwargs['params']"""
@@ -66,3 +65,15 @@ class FileFilterRetriever(Runnable):
         result = self.invoke(input_data)
         yield result  # 將最終輸出包裝為事件
         
+if __name__ == "__main__":
+    from chat_agent_module.twlf_vectorstore import get_localsearch_retriever, get_baseline_retriever
+    from langchain_openai import AzureOpenAIEmbeddings
+    embedding = AzureOpenAIEmbeddings(
+        model="text-embedding-3-small",
+        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+        azure_deployment='text-embedding-3-small',
+        openai_api_version='2023-05-15'
+    )
+    retriever = get_baseline_retriever(embedding, 0.8, include_metadata=False)
+    result = retriever.invoke({"question": "主契約效力停止時，要保人不得單獨申請恢復本附約之效力", 'inputs': {}})
+    print(result)

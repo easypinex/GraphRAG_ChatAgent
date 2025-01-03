@@ -120,7 +120,7 @@ def get_baseline_vectorstore(embedding) -> TwlfNeo4jVector:
                                         text_node_properties=['content'])
     return vectorstore
 
-def get_baseline_retriever(embedding, score_threshold: float = 0.9) -> TwlfNeo4jVector:
+def get_baseline_retriever(embedding, score_threshold: float = 0.9, include_metadata: bool = True) -> TwlfNeo4jVector:
     vectorstore: Neo4jVector = get_baseline_vectorstore(embedding)
     vector_retriever = vectorstore.as_retriever(
         search_type="similarity_score_threshold",
@@ -128,7 +128,8 @@ def get_baseline_retriever(embedding, score_threshold: float = 0.9) -> TwlfNeo4j
         tags=['BaselineRAG']
     )
     baseline_retriever = FileFilterRetriever(retriever=vector_retriever, node_label='__Chunk__')
-    baseline_retriever = FileMetadataRetriever(retriever=baseline_retriever)
+    if include_metadata:
+        baseline_retriever = FileMetadataRetriever(retriever=baseline_retriever)
     return baseline_retriever
 
 if __name__ == "__main__":

@@ -10,15 +10,15 @@ from langchain.schema.runnable import Runnable
 from langchain_core.vectorstores.base import VectorStoreRetriever
 from langchain_core.documents import Document
 from langchain.schema.runnable import Runnable
+from langchain_core.retrievers import BaseRetriever
 
 from database import db_session
 from minio_module.minio_service import minio_service
 from models.file_task import FileTask
 from chat_agent_module.file_filter_retriever import FileFilterRetriever
 
-class FileMetadataRetriever(Runnable):
-    def __init__(self, retriever):
-        self.retriever: FileFilterRetriever = retriever
+class FileMetadataRetriever(BaseRetriever):
+    retriever: FileFilterRetriever
         
     def invoke(self, inputs):
         return self._get_relevant_documents(inputs)
@@ -37,7 +37,7 @@ class FileMetadataRetriever(Runnable):
                 elif isinstance(fileIds, int):
                     total_fileIds.append(fileIds)
             for fileId in total_fileIds:
-                # fileId = 9 # mock id
+                fileId = 9 # mock id
                 file_task = db_session.query(FileTask).filter(FileTask.id == fileId).first()
                 if file_task is not None:
                     file_data = {
@@ -67,5 +67,4 @@ if __name__ == "__main__":
     # print(minio_retriever.invoke({"question": "台灣人壽", 'inputs': {}}))
     
     baseline_retriever = get_baseline_retriever(embedding, 0.8)
-    minio_retriever = FileMetadataRetriever(baseline_retriever)
-    print(minio_retriever.invoke({"question": "主契約效力停止時，要保人不得單獨申請恢復本附約之效力", 'inputs': {}}))
+    print(baseline_retriever.invoke({"question": "主契約效力停止時，要保人不得單獨申請恢復本附約之效力", 'inputs': {}}))
