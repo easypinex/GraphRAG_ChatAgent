@@ -30,9 +30,9 @@ embedding = AzureOpenAIEmbeddings(
     openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"]
 )
 local_search_retriever = get_localsearch_retriever(embedding)
-local_search_retriever_chain = local_search_retriever | FileMetadataSearch() | RemoveMetadata()
+local_search_retriever_chain = local_search_retriever | FileMetadataSearch()
 vector_retriever = get_baseline_retriever(embedding)
-vector_retriever_chain = vector_retriever | FileMetadataSearch() | RemoveMetadata()
+vector_retriever_chain = vector_retriever | FileMetadataSearch()
     
 llm = AzureChatOpenAI(
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
@@ -61,7 +61,8 @@ contextualize_chain = (
 
 store = {}
 
-    
+remover = RemoveMetadata()
+
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
@@ -70,8 +71,14 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
 # 使用 RunnableParallel 來組織多個並行查詢
 context_and_search_chain = RunnableParallel(
     {
-        "context": RunnableLambda(lambda inputs: vector_retriever_chain.invoke(inputs)),
-        "graph_result": RunnableLambda(lambda inputs: local_search_retriever_chain.invoke(inputs)),
+        "context": RunnableLambda(
+            lambda inputs: 
+                remover.invoke(vector_retriever_chain.invoke(inputs))
+        ),
+        "graph_result": RunnableLambda(
+            lambda inputs: 
+                remover.invoke(local_search_retriever_chain.invoke(inputs))
+        ),
         "question": lambda inputs: inputs.get("question"),  # 保留原始問題
     }
 )
