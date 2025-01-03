@@ -35,7 +35,7 @@ for event in client.events():
     data = json.loads(event.data)
     name = data.get('name')
     event = data.get('event')
-    tags = data['tags']
+    tags = data.get('tags', [])
     in_data = data.get('data')
     file_datas = []
     # print(f'event: {event}, name: {name}, tags: {tags}, data:{data}')

@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
 from chat_agent_module.file_metadata_search import FileMetadataSearch
+from chat_agent_module.remove_metadata import RemoveMetadata
 from chat_agent_module.twlf_vectorstore import get_baseline_retriever, get_localsearch_retriever
 from prompts.prompts import QUESTION_HISTORY_PROMPT, QUESTION_PROMPT
 
@@ -29,13 +30,9 @@ embedding = AzureOpenAIEmbeddings(
     openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"]
 )
 local_search_retriever = get_localsearch_retriever(embedding)
-local_search_retriever_chain = local_search_retriever | FileMetadataSearch().with_config(
-    tags=['localsearch_rag_with_metadata']
-)
+local_search_retriever_chain = local_search_retriever | FileMetadataSearch() | RemoveMetadata()
 vector_retriever = get_baseline_retriever(embedding)
-vector_retriever_chain = vector_retriever | FileMetadataSearch().with_config(
-    tags=['baseline_rag_with_metadata']
-)
+vector_retriever_chain = vector_retriever | FileMetadataSearch() | RemoveMetadata()
     
 llm = AzureChatOpenAI(
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
