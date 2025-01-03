@@ -16,6 +16,7 @@ from langserve import add_routes
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
+from chat_agent_module.file_metadata_search import FileMetadataSearch
 from chat_agent_module.twlf_vectorstore import get_baseline_retriever, get_localsearch_retriever
 from prompts.prompts import QUESTION_HISTORY_PROMPT, QUESTION_PROMPT
 
@@ -28,12 +29,19 @@ embedding = AzureOpenAIEmbeddings(
     openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"]
 )
 local_search_retriever = get_localsearch_retriever(embedding)
+local_search_retriever_chain = local_search_retriever | FileMetadataSearch().with_config(
+    tags=['localsearch_rag_with_metadata']
+)
 vector_retriever = get_baseline_retriever(embedding)
-
+vector_retriever_chain = vector_retriever | FileMetadataSearch().with_config(
+    tags=['baseline_rag_with_metadata']
+)
+    
 llm = AzureChatOpenAI(
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
     azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"],
     openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
+    temperature=0
 )
 prompt = QUESTION_PROMPT
 
@@ -49,7 +57,8 @@ contextualize_chain = (
     contextualize_q_prompt
     | llm
     | StrOutputParser().with_config({
-        'tags': ['contextualize_question']
+        'tags': ['contextualize_question'],
+        'name': 'FileMetadataSearch'
     })
 )
 
@@ -64,8 +73,8 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
 # 使用 RunnableParallel 來組織多個並行查詢
 context_and_search_chain = RunnableParallel(
     {
-        "context": RunnableLambda(lambda inputs: vector_retriever.invoke(inputs)),
-        "graph_result": RunnableLambda(lambda inputs: local_search_retriever.invoke(inputs)),
+        "context": RunnableLambda(lambda inputs: vector_retriever_chain.invoke(inputs)),
+        "graph_result": RunnableLambda(lambda inputs: local_search_retriever_chain.invoke(inputs)),
         "question": lambda inputs: inputs.get("question"),  # 保留原始問題
     }
 )

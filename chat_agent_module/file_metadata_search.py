@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import Optional
 
 from langchain_openai import AzureOpenAIEmbeddings
 
@@ -10,14 +11,14 @@ from langchain.schema.runnable import Runnable
 from langchain_core.documents import Document
 from langchain.schema.runnable import Runnable
 from langsmith import traceable
-
+from langchain_core.runnables.config import RunnableConfig
+    
 from database import db_session
 from minio_module.minio_service import minio_service
 from models.file_task import FileTask
 
 class FileMetadataSearch(Runnable):
-        
-    def invoke(self, docs: list[Document], *args, **kwargs) -> list[Document]:
+    def invoke(self, docs: list[Document], config: Optional[RunnableConfig] = None, *args, **kwargs) -> list[Document]:
         return self.search_docs_metadata(docs)
     
     @traceable
