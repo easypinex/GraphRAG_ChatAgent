@@ -12,7 +12,7 @@ def get_logger(name: str = "chat_agent") -> logging.Logger:
         logger.setLevel(logging.DEBUG)
         # StreamHandler
         stream_handler = logging.StreamHandler()
-        FORMAT = "%(asctime)s - [%(filename)s:%(lineno)s  %(funcName)20s()] %(message)s"
+        FORMAT = "%(asctime)s - [%(levelname)s] [%(filename)s:%(lineno)s  %(funcName)20s()] %(message)s"
         formatter = logging.Formatter(FORMAT)
         stream_handler.setFormatter(formatter)
         logger.addHandler(stream_handler)

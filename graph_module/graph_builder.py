@@ -1,7 +1,11 @@
 """整理建構圖樹方法"""
+import sys
 import os
+if __name__ == "__main__":
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from typing import Any, Dict, List
 from uuid import uuid4 as uuid
+import traceback
 
 from langchain_community.graphs import Neo4jGraph
 from langchain_community.graphs.graph_document import (Document, GraphDocument,
@@ -366,8 +370,8 @@ class GraphBuilder:
                 except Exception as e:
                     chunk = futures_to_chunk_doc[future]
                     failed_documents.append(chunk)
-                    print(f"Error processing document: {chunk}")
-                    print(e)
+                    logging.error(f"Error processing Entity Graph Chunk: {chunk}")
+                    logging.error(traceback.format_exc())
 
         # 假如有失敗的 chunk 且 max_retry > 0, 則重新嘗試
         if len(failed_documents) > 0 and max_retry > 0:

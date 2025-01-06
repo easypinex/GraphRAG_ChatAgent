@@ -4,12 +4,13 @@ if __name__ == '__main__':
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
     
 from typing import Any, Dict, List, Tuple
+import traceback
+
 from langchain_core.documents import Document
 import pandas as pd
 import pdfplumber
 from pdfplumber.page import CroppedPage, Page
 from pdfplumber.table import Table
-
 from langchain_community.document_loaders.base import BaseLoader
 
 from logger.logger import get_logger
@@ -115,8 +116,9 @@ class PDFTablePyPlumberLoader(BaseLoader):
                 desc = desc_chain.invoke({"list_str": list_str}).description
                 if desc:
                     document_packer.document.page_content += '\n\n' + desc
-            except Exception as e:
-                print(e)
+            except:
+                logging.error(f'Process pdf_table read faild!, error:\n{e}')
+                logging.error(traceback.format_exc())
                 document_packer.document.page_content += '\n\n' + list_str
                 
 
@@ -132,7 +134,9 @@ class PDFTablePyPlumberLoader(BaseLoader):
                 try:
                     future.result()
                 except Exception as e:
-                    print(f'process element faild!, error:\n{e}')
+                    logging.error(f'Process pdf_table read faild!, error:\n{e}')
+                    logging.error(traceback.format_exc())
+                    
     
     def _get_text_crop_box(self, page, tables):
         '''

@@ -1,9 +1,17 @@
+import sys
+import os
+if __name__ == "__main__":
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from datetime import timedelta
 from minio import Minio
 from minio.error import S3Error
 from io import BytesIO
 import json
 from mimetypes import MimeTypes
+from logger.logger import get_logger
+import traceback
+
+logging = get_logger()
 
 class MinioClient:
     def __init__(self, **clinet_kargs):
@@ -26,20 +34,20 @@ class MinioClient:
             # Check if the bucket exists, create it if it doesn't
             if not self.client.bucket_exists(bucket):
                 self.client.make_bucket(bucket)
-                print(f"Bucket '{bucket}' created successfully.")
+                logging.info(f"Bucket '{bucket}' created successfully.")
             else:
-                print(f"Bucket '{bucket}' already exists.")
+                logging.debug(f"Bucket '{bucket}' already exists.")
 
             # Upload the file
             content_type = MimeTypes().guess_type(source_file_path)[0]
             if content_type == 'application/json':
                 content_type = "text/plain" # for minio console preview
             self.client.fput_object(bucket, destination_file_path, source_file_path, content_type=content_type)
-            print(f"File '{source_file_path}' uploaded to '{bucket}/{destination_file_path}'.")
+            logging.info(f"File '{source_file_path}' uploaded to '{bucket}/{destination_file_path}'.")
             return True
 
         except S3Error as exc:
-            print("An error occurred while uploading to MinIO:", exc)
+            logging.error("An error occurred while uploading to MinIO:", exc)
             return False
 
     def download_file_from_minio(self, bucket: str, source_file_path: str, destination_file_path: str) -> bool:
@@ -57,11 +65,12 @@ class MinioClient:
         try:
             # Download the file
             self.client.fget_object(bucket, source_file_path, destination_file_path)
-            print(f"File '{source_file_path}' downloaded from '{bucket}' to '{destination_file_path}'.")
+            logging.info(f"File '{source_file_path}' downloaded from '{bucket}' to '{destination_file_path}'.")
             return True
 
         except S3Error as exc:
-            print("An error occurred while downloading from MinIO:", exc)
+            logging.error("An error occurred while downloading from MinIO:", exc)
+            logging.error(traceback.format_exc())
             return False
         
     def upload_dict_as_json(self, bucket: str, json_data: dict|list, destination_file_path: str) -> bool:
@@ -85,17 +94,18 @@ class MinioClient:
             # Check if the bucket exists, create it if it doesn't
             if not self.client.bucket_exists(bucket):
                 self.client.make_bucket(bucket)
-                print(f"Bucket '{bucket}' created successfully.")
+                logging.info(f"Bucket '{bucket}' created successfully.")
             else:
-                print(f"Bucket '{bucket}' already exists.")
+                logging.debug(f"Bucket '{bucket}' already exists.")
 
             # Upload the JSON file
             self.client.put_object(bucket, destination_file_path, json_bytes, size, content_type="text/plain") # "text/plain" is for minio console preview
-            print(f"Dictionary uploaded as JSON to '{bucket}/{destination_file_path}'.")
+            logging.info(f"Dictionary uploaded as JSON to '{bucket}/{destination_file_path}'.")
             return True
 
         except Exception as exc:
-            print("An error occurred while uploading JSON to MinIO:", exc)
+            logging.error("An error occurred while uploading JSON to MinIO:", exc)
+            logging.error(traceback.format_exc())
             return False
         
     def download_json_as_dict(self, bucket: str, source_file_path: str) -> dict | list | None:
@@ -117,11 +127,12 @@ class MinioClient:
             json_bytes = BytesIO(response.read())
             json_data = json.loads(json_bytes.getvalue().decode('utf-8'))
 
-            print(f"JSON file '{source_file_path}' downloaded and parsed successfully.")
+            logging.info(f"JSON file '{source_file_path}' downloaded and parsed successfully.")
             return json_data
 
         except Exception as exc:
-            print("An error occurred while downloading JSON from MinIO:", exc)
+            logging.error("An error occurred while downloading JSON from MinIO:", exc)
+            logging.error(traceback.format_exc())
             return None
 
     def check_file_exists(self, bucket: str, file_path: str) -> bool:
@@ -146,12 +157,13 @@ class MinioClient:
             return True
         except S3Error as e:
             if e.code == "NoSuchKey":
-                print(f"File '{file_path}' does not exist in bucket '{bucket}'.")
+                logging.debug(f"File '{file_path}' does not exist in bucket '{bucket}'.")
             else:
-                print(f"An error occurred while checking the file: {e}")
+                logging.error(f"An error occurred while checking the file: {e}")
             return False
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            logging.error(f"Check Minio file exist failed. Unexpected error: {e}")
+            logging.error(traceback.format_exc())
             return False
         
     def get_share_link_for_file(self, bucket: str, file_path: str, expiration_in_minutes: int = 120) -> str:

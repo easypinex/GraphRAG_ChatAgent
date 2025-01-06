@@ -1,9 +1,16 @@
-import pika
+import sys
 import os
+if __name__ == "__main__":
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+    
 import json
+import traceback
 
 from dataflow_module.rabbitmq_connection import get_rabbitmq_connection
 from dataflow_module.rabbitmq_task import QueueTaskDict
+from logger.logger import get_logger
+
+logging = get_logger()
 
 def publish_queue_message(task: QueueTaskDict):
     try:
@@ -18,6 +25,6 @@ def publish_queue_message(task: QueueTaskDict):
         channel.basic_publish(exchange='', routing_key=rabbitmq_queue, body=message)
         connection.close()
         return True
-    except Exception as e:
-        print(f"Failed to send message: {e}")
+    except:
+        logging.error(f"Failed to send message: {traceback.format_exc()}")
         return False

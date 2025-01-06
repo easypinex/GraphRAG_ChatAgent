@@ -1,7 +1,13 @@
+import sys
+import os
+if __name__ == "__main__":
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from langchain_community.graphs import Neo4jGraph
 import json
 import uuid
+from logger.logger import get_logger
 
+logging = get_logger()
 
 # 1. 備份功能：將 Neo4j 節點和關係備份為字典格式
 def backup_neo4j_to_dict(graph: Neo4jGraph) -> dict:
@@ -62,7 +68,7 @@ def restore_neo4j_from_dict(graph: Neo4jGraph, backup_data: dict):
         """
         graph.query(create_relationship_query, params={"props": properties})
 
-    print("Data successfully restored to Neo4j without using ID().")
+    logging.info("Data successfully restored to Neo4j without using ID().")
 
 # 3. 主程式：備份與還原邏輯
 def main():
@@ -83,7 +89,7 @@ def main():
         # 將備份資料存成 JSON 文件
         with open(backup_file, "w", encoding="utf-8") as f:
             json.dump(backup_data, f, ensure_ascii=False)
-        print(f"Data successfully backed up to {backup_file}")
+        logging.info(f"Data successfully backed up to {backup_file}")
     elif action == "restore":
         # 讀取備份文件
         with open(backup_file, "r", encoding="utf-8") as f:
@@ -91,7 +97,7 @@ def main():
         # 執行還原
         restore_neo4j_from_dict(graph, backup_data)
     else:
-        print("Invalid action. Please enter 'backup' or 'restore'.")
+        logging.error("Invalid action. Please enter 'backup' or 'restore'.")
 
 if __name__ == "__main__":
     main()

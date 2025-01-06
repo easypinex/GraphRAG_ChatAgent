@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from langserve import add_routes
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
+from langchain.schema.runnable import Runnable
 
 from chat_agent_module.file_metadata_search import FileMetadataSearch
 from chat_agent_module.remove_metadata import RemoveMetadata
@@ -30,9 +31,9 @@ embedding = AzureOpenAIEmbeddings(
     openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"]
 )
 local_search_retriever = get_localsearch_retriever(embedding)
-local_search_retriever_chain = local_search_retriever | FileMetadataSearch()
+local_search_retriever_chain: Runnable = local_search_retriever | FileMetadataSearch()
 vector_retriever = get_baseline_retriever(embedding)
-vector_retriever_chain = vector_retriever | FileMetadataSearch()
+vector_retriever_chain: Runnable = vector_retriever | FileMetadataSearch()
     
 llm = AzureChatOpenAI(
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
@@ -40,18 +41,16 @@ llm = AzureChatOpenAI(
     openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
     temperature=0
 )
-prompt = QUESTION_PROMPT
 
 # rag_chain = (
 #     {"context": vector_retriever, "question": RunnablePassthrough(), "graph_result": local_search_retriever}
 #     | prompt
 #     | llm
 # )
-# 定義上下文解析的Chain
-contextualize_q_prompt = QUESTION_HISTORY_PROMPT
 
+# 定義上下文解析的Chain
 contextualize_chain = (
-    contextualize_q_prompt
+    QUESTION_HISTORY_PROMPT
     | llm
     | StrOutputParser().with_config({
         'tags': ['contextualize_question'],
@@ -86,7 +85,7 @@ context_and_search_chain = RunnableParallel(
 rag_chain = (
     {"question": contextualize_chain, "inputs": RunnablePassthrough()}
     | context_and_search_chain
-    | prompt
+    | QUESTION_PROMPT
     | llm
     | StrOutputParser().with_config({
         "tags": ['final_output']
@@ -134,11 +133,13 @@ app.add_middleware(
     allow_headers=["*"],            # 允許的 HTTP 標頭
 )
 
+ssl_keyfile = os.getenv("CHAT_AGENT_SSL_PRIVATE_KEY")
+ssl_certfile = os.getenv("CHAT_AGENT_SSL_PUBLIC_KEY")
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", 
                 port=8000,
-                ssl_keyfile="./self-sign/private.key",
-                ssl_certfile="./self-sign/public.crt"
+                ssl_keyfile=ssl_keyfile,
+                ssl_certfile=ssl_certfile
                 )

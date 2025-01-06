@@ -1,5 +1,6 @@
 *.pyc
 upload_files/**
+!upload_files/__init__
 **/logs/**
 .env
 *.DS_Store

@@ -25,7 +25,10 @@ from minio_module.minio_service import MinioService, minio_service
 from neo4j_module.neo4j_object_serialization import dict_to_graph_document, graph_document_to_dict
 from neo4j_module.neo4j_backup_restore import backup_neo4j_to_dict, restore_neo4j_from_dict
 from graph_module.dto.duplicate_info_dict import DuplicateInfoDict
+from logger.logger import get_logger
+import traceback
 
+logging = get_logger()
 
 class DataflowService:
     def __init__(self, parse_file_using_llm: bool = True):
@@ -46,6 +49,41 @@ class DataflowService:
         self._graph = Neo4jGraph()
         self._graph_builder = GraphBuilder(self._graph)
         self._knowledge_service = KnowledgeService(self._graph, self._embedding, self._llm)
+
+    def received_mq_task(self, task: QueueTaskDict):
+        task_type = task.get('task_type')
+        msg = task.get('msg')
+        if task_type is None:
+            logging.error(f" [x] Unknown task structure: {task}")
+        logging.info(f" [x] Received {task_type}")
+        task_id = None
+        try:
+            if task_type == QueueTaskDict.TaskType.FILE_READ:
+                msg = FileTask.load_from_json(msg)
+                task_id = msg.id
+                self.received_file_task(msg)
+            elif task_type == QueueTaskDict.TaskType.ENTITY_BUILD:
+                msg = json.loads(msg)
+                simple_graph: SimpleGraph = SimpleGraph.from_dict(msg)
+                task_id = simple_graph.file_id
+                self.received_entity_task(simple_graph)
+            elif task_type == QueueTaskDict.TaskType.COMMNUITY_BUILD:
+                self.received_refine_task(task)
+            elif task_type == QueueTaskDict.TaskType.RESTORE_NEO4J:
+                self.received_restore_neo4j(msg)
+            elif task_type == QueueTaskDict.TaskType.BACKUP_NEO4J:
+                self.received_backup_neo4j()
+            else:
+                logging.warning(f" [x] Unknown task type: {task_type}")
+        except:
+            logging.error(f" [x] Failed to process task: {task}")
+            logging.error(traceback.format_exc())
+            if task_id is not None:
+                try:
+                    db_session.query(FileTask).filter_by(id=task_id).update({'status': FileTask.FileStatus.FAILED})
+                    db_session.commit()
+                except Exception as e:
+                    logging.error(f" [x] Failed to update task status: {task_id}, \n{e}")
 
     def received_file_task(self, file_task: FileTask):
         """

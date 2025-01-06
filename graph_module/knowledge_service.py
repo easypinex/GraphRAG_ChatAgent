@@ -1,4 +1,8 @@
+import sys
 import os
+if __name__ == "__main__":
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional, TypedDict
 
@@ -25,6 +29,10 @@ from langchain_community.graphs.graph_document import (Document, GraphDocument,
 from langchain_community.graphs import Neo4jGraph
 from prompts.prompts import COMMNUITY_SUMMARY_SYSTEM, PROMPT_FIND_DUPLICATE_NODES_SYSTEM, PROMPT_FIND_DUPLICATE_NODES_USER
 import pandas as pd
+from logger.logger  import get_logger
+import traceback
+
+logging = get_logger()
 
 class KnowledgeService:
     class PotentialDuplicateNodeDict(TypedDict):
@@ -56,7 +64,7 @@ class KnowledgeService:
         """
         result = self.graph.query(query)
         if result[0]["count"] == 0:
-            print("No '__Entity__' nodes found in the database.")
+            logging.warning("No '__Entity__' nodes found in the database.")
             return []
         
         # 從原本的 graph 資料中撈取所有 entity, 然後建立一個子圖 （在運算上站的資源較少）
@@ -248,7 +256,8 @@ class KnowledgeService:
                         merged_entities_result.append(to_merge)
                     except Exception as e:
                         el = merged_future_map[future]
-                        print(f'process element faild!:{el['combinedResult']}, error:\n{e}')
+                        logging.error(f'process duplicate element faild!:{el['combinedResult']}, error:\n{e}')
+                        logging.error(traceback.format_exc())
                         merged_failds.append(el)
 
             if len(merged_failds) > 0 and max_retry > 0:
@@ -626,7 +635,8 @@ class KnowledgeService:
                         summaries.append(future.result())
                     except Exception as e:
                         community = futures[future]
-                        print(f'process community faild!:{community}, error:\n{e}')
+                        logging.error(f'process community faild!:{community}, error:\n{e}')
+                        logging.error(traceback.format_exc())
                         faild_communities.append(community)
             if len(faild_communities) > 0 and max_retry > 0:
                 time.sleep(30) # 防止超出限制的情境, 等待一段時間後再嘗試
