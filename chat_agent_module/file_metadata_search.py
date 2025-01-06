@@ -35,7 +35,7 @@ class FileMetadataSearch(Runnable):
                 elif isinstance(fileIds, int):
                     total_fileIds.append(fileIds)
             for fileId in total_fileIds:
-                fileId = 9 # mock id
+                # fileId = 9 # mock id
                 file_task = db_session.query(FileTask).filter(FileTask.id == fileId).first()
                 if file_task is not None:
                     file_data = {
