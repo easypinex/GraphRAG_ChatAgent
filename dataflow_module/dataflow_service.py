@@ -174,6 +174,7 @@ class DataflowService:
                         FileTask.user_operate == None
                     ).all()
         user_delete_files = db_session.query(FileTask).filter_by(user_operate=FileTask.UserOperate.DELETE).all()
+        fails_files = db_session.query(FileTask).filter_by(status=FileTask.FileStatus.FAILED).all()
         # 狀態改為重整中
         for file in files:
             file.status = FileTask.FileStatus.REFINING_KNOWLEDGE
@@ -215,10 +216,14 @@ class DataflowService:
         for del_file in user_delete_files:
             del_file.status = FileTask.FileStatus.DELETED
             del_file.user_operate = None
+        # 將失敗的紀錄設置為刪除
+        for fail_file in fails_files:
+            self._knowledge_service.remove_document_chain(fail_file.id)
+            fail_file.status = FileTask.FileStatus.DELETED
         db_session.commit()
         # 備份DB
-        neo4j_all_data = backup_neo4j_to_dict(self._graph)
-        minio_service.upload_neo4j_backup_to_minio(neo4j_all_data)
+        # neo4j_all_data = backup_neo4j_to_dict(self._graph)
+        # minio_service.upload_neo4j_backup_to_minio(neo4j_all_data)
         
     def _determine_similar_nodes_with_cached_llm(self, cached_duplicate_nodes: list[DuplicateInfoDict] = None) -> list[DuplicateInfoDict]:
         if cached_duplicate_nodes is None:
