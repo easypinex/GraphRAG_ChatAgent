@@ -34,7 +34,13 @@ class DataflowService:
     def __init__(self, parse_file_using_llm: bool = True):
         self._llm = AzureChatOpenAI(
             azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-            azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"],
+            azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME_MAIN"],
+            openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
+            temperature=0
+        )
+        self._large_llm = AzureChatOpenAI(
+            azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+            azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME_LARGE"],
             openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
             temperature=0
         )
@@ -48,7 +54,7 @@ class DataflowService:
         self._file_service = FileService(self._llm if parse_file_using_llm else None)
         self._graph = Neo4jGraph()
         self._graph_builder = GraphBuilder(self._graph)
-        self._knowledge_service = KnowledgeService(self._graph, self._embedding, self._llm)
+        self._knowledge_service = KnowledgeService(self._graph, self._embedding, self._llm, self._large_llm)
 
     def received_mq_task(self, task: QueueTaskDict):
         task_type = task.get('task_type')

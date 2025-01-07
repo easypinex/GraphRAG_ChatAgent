@@ -42,10 +42,11 @@ class KnowledgeService:
         """
         combinedResult: list[str]
     
-    def __init__(self, graph, embedding, llm):
+    def __init__(self, graph, embedding, llm, large_llm):
         self.graph: Neo4jGraph = graph
         self.embedding = embedding
-        self.llm = llm
+        self.llm_simple = llm
+        self.llm_large = large_llm
         
     # 找出相似節點
     def findout_similar_nodes_rule_base(self) -> List[PotentialDuplicateNodeDict]:
@@ -202,7 +203,7 @@ class KnowledgeService:
                 description="Lists of entities that represent the same object or real-world entity and should be merged"
             )
 
-        extraction_llm = self.llm.with_structured_output(
+        extraction_llm = self.llm_large.with_structured_output(
             Disambiguate
         )
         extraction_prompt = ChatPromptTemplate.from_messages(
@@ -584,7 +585,7 @@ class KnowledgeService:
             ]
         )
 
-        community_chain = community_prompt | self.llm | StrOutputParser()
+        community_chain = community_prompt | self.llm_simple | StrOutputParser()
 
         def prepare_string(data):
             nodes_str = "Nodes are:\n"

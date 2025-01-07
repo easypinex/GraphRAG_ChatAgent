@@ -37,7 +37,7 @@ vector_retriever_chain: Runnable = vector_retriever | FileMetadataSearch()
     
 llm = AzureChatOpenAI(
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-    azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"],
+    azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME_MAIN"],
     openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
     temperature=0
 )
