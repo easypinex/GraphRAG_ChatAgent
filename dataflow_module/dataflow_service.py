@@ -61,6 +61,7 @@ class DataflowService:
         msg = task.get('msg')
         if task_type is None:
             logging.error(f" [x] Unknown task structure: {task}")
+            return
         logging.info(f" [x] Received {task_type}")
         task_id = None
         try:
