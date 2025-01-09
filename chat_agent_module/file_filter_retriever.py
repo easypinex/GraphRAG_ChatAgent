@@ -1,8 +1,9 @@
 import os
 import sys
-
 if __name__ == "__main__":
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+    
+from chat_agent_module.inputs_validator import inputs_validator
     
 from langchain_core.vectorstores.base import VectorStoreRetriever
 from langchain_core.documents import Document
@@ -21,12 +22,7 @@ class FileFilterRetriever(BaseRetriever):
         self.retriever.search_kwargs.update(search_kwargs)
     
     def _update_params(self, inputs):
-        if not isinstance(inputs, dict) :
-            raise TypeError("query must be a dict")
-        missing_keys = list(set(['inputs', 'question']) - set(inputs.keys()))
-        if len(missing_keys) > 0:
-            raise ValueError(f"Missing keys: {', '.join(missing_keys)}")
-        
+        inputs_validator(inputs)
         inputs: dict = inputs.get("inputs", {})
         fileIds: list[int] = inputs.get("fileIds", [])
         if fileIds is None or len(fileIds) == 0:

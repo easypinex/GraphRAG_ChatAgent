@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from langchain.schema.runnable import Runnable
 
 from chat_agent_module.file_metadata_search import FileMetadataSearch
+from chat_agent_module.file_scope_selector import FileScopeSelector
 from chat_agent_module.remove_metadata import RemoveMetadata
 from chat_agent_module.twlf_vectorstore import get_baseline_retriever, get_localsearch_retriever
 from prompts.prompts import QUESTION_HISTORY_PROMPT, QUESTION_PROMPT
@@ -84,6 +85,7 @@ context_and_search_chain = RunnableParallel(
 
 rag_chain = (
     {"question": contextualize_chain, "inputs": RunnablePassthrough()}
+    | FileScopeSelector(llm)
     | context_and_search_chain
     | QUESTION_PROMPT
     | llm

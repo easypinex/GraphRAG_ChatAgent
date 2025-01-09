@@ -79,6 +79,17 @@ QUESTION_HISTORY_PROMPT = ChatPromptTemplate.from_messages(
         ("human", "{question}"),
     ]
 )
+
+## 找出對應的檔案ID
+RELATED_FILE_IDS_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", (
+            "請根據提供的問題以及相關檔案找出可能會答案的檔案ID"
+        )),
+        ("human", "檔案清單:{file_list}\n\n問題: {question}\n\n "),
+    ]
+)
+
 ### 針對詢問搜尋
 QUESTION_PROMPT = ChatPromptTemplate.from_template(
 """
