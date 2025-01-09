@@ -43,6 +43,13 @@ llm = AzureChatOpenAI(
     temperature=0
 )
 
+large_llm = AzureChatOpenAI(
+    azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+    azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME_LARGE"],
+    openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
+    temperature=0
+)
+
 # rag_chain = (
 #     {"context": vector_retriever, "question": RunnablePassthrough(), "graph_result": local_search_retriever}
 #     | prompt
@@ -85,7 +92,7 @@ context_and_search_chain = RunnableParallel(
 
 rag_chain = (
     {"question": contextualize_chain, "inputs": RunnablePassthrough()}
-    | FileScopeSelector(llm)
+    | FileScopeSelector(large_llm)
     | context_and_search_chain
     | QUESTION_PROMPT
     | llm
