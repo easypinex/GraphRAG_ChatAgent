@@ -34,7 +34,7 @@ class DataflowService:
     def __init__(self, parse_file_using_llm: bool = True):
         self._llm = AzureChatOpenAI(
             azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-            azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME_MAIN"],
+            azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME_LARGE"],
             openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
             temperature=0
         )
