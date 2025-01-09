@@ -53,7 +53,7 @@ class FileScopeSelector(Runnable):
     def _get_file_tasks_str(self, file_tasks: List[FileTask]) -> str:
         result = ''
         for file_task in file_tasks:
-            result += f"檔案ID:{file_task.id}, 檔案名稱:{file_task.filename}\n"
+            result += f"商品ID:{file_task.id}, 商品名稱:{file_task.filename}\n"
         return result
         
 if __name__ == '__main__':

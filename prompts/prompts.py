@@ -84,9 +84,9 @@ QUESTION_HISTORY_PROMPT = ChatPromptTemplate.from_messages(
 RELATED_FILE_IDS_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("system", (
-            "請根據提供的問題以及相關檔案找出可能會答案的檔案ID, 可能有多個檔案ID"
+            "請根據提供的問題以及商品清單找出有關問題的商品ID, 通常使用者針對商品詢問, 而一項商品有兩個ID"
         )),
-        ("human", "檔案清單:{file_list}\n\n問題: {question}\n\n "),
+        ("human", "商品清單:{file_list}\n\n問題: {question}\n\n "),
     ]
 )
 
