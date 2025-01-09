@@ -95,7 +95,7 @@ rag_chain = (
     | FileScopeSelector(large_llm)
     | context_and_search_chain
     | QUESTION_PROMPT
-    | llm
+    | large_llm
     | StrOutputParser().with_config({
         "tags": ['final_output']
     })
