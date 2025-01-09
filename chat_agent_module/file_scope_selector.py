@@ -35,7 +35,7 @@ class FileScopeSelector(Runnable):
         fileIds: list[int] = inside_inputs.get("fileIds", [])
         question = inputs.get("question")
         if fileIds is not None and len(fileIds) > 0:
-            return inside_inputs
+            return inputs
         inside_inputs['fileIds'] = self.get_related_file_ids(question)
         return inputs
         
