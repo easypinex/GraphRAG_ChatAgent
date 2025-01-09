@@ -33,7 +33,7 @@ embedding = AzureOpenAIEmbeddings(
 )
 local_search_retriever = get_localsearch_retriever(embedding)
 local_search_retriever_chain: Runnable = local_search_retriever | FileMetadataSearch()
-vector_retriever = get_baseline_retriever(embedding)
+vector_retriever = get_baseline_retriever(embedding, score_threshold=0.8)
 vector_retriever_chain: Runnable = vector_retriever | FileMetadataSearch()
     
 llm = AzureChatOpenAI(
