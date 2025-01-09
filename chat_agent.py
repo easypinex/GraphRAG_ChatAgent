@@ -59,7 +59,7 @@ large_llm = AzureChatOpenAI(
 # 定義上下文解析的Chain
 contextualize_chain = (
     QUESTION_HISTORY_PROMPT
-    | llm
+    | large_llm
     | StrOutputParser().with_config({
         'tags': ['contextualize_question'],
         'name': 'FileMetadataSearch'
