@@ -73,6 +73,7 @@ QUESTION_HISTORY_PROMPT = ChatPromptTemplate.from_messages(
             "formulate a standalone question which can be understood " # 請將問題重新表述為一個獨立的問題，使其在沒有聊天歷史的情況下也能被理解
             "without the chat history. Do NOT answer the question, " # 不要回答這個問題
             "just reformulate it if needed and otherwise return it as is." # 只需在必要時重新表述問題，否則原樣返回
+            "如果歷史問答中包含專有名詞(商品、保險別、條款等)，給予最可能的名詞當作問題主詞"
             "請確保使用繁體中文回應"
         )),
         MessagesPlaceholder("chat_history"),
