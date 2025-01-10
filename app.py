@@ -1,5 +1,6 @@
 from flask import Flask
 from database import init_db, shutdown_session
+from flask_cors import CORS
 
 def create_app():
     app = Flask(__name__)
@@ -17,7 +18,7 @@ def create_app():
         
         from neo4j_module.neo4j_flask_module import neo4j_module
         app.register_blueprint(neo4j_module, url_prefix='/neo4j')
-    
+    CORS(app)
     return app
 
 def flask_init_db(app):
