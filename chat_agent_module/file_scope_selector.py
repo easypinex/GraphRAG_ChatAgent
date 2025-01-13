@@ -33,8 +33,9 @@ class FileScopeSelector(Runnable):
         inputs_validator(inputs)
         inside_inputs: dict = inputs.get("inputs", {})
         fileIds: list[int] = inside_inputs.get("fileIds", [])
+        fileIds = list(set(fileIds)) # 去重
         question = inputs.get("question")
-        if fileIds is not None and len(fileIds) > 0:
+        if len(fileIds) > 0:
             return inputs
         inside_inputs['fileIds'] = self.get_related_file_ids(question)
         return inputs
