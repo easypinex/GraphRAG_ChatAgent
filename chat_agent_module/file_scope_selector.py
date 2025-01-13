@@ -34,6 +34,7 @@ class FileScopeSelector(Runnable):
         inside_inputs: dict = inputs.get("inputs", {})
         fileIds: list[int] = inside_inputs.get("fileIds", [])
         fileIds = list(set(fileIds)) # 去重
+        inside_inputs['fileIds'] = fileIds
         question = inputs.get("question")
         if len(fileIds) > 0:
             return inputs
