@@ -8,7 +8,13 @@
    * 若只是要開發，可以快速 至 simulated_env/* 底下 啟動相關周邊服務(需搭配docker-compose)
    * 啟動服務指令:
       ```sh
-      dotenv run -- python chat_agent.py & dotenv run -- gunicorn -c gunicorn.conf.py app:app & dotenv run -- python rabbitmq_consumer.py
+      dotenv run -- python chat_agent.py > chat_agent.log 2>&1 & 
+      dotenv run -- gunicorn -c gunicorn.conf.py app:app > gunicorn.log 2>&1 &
+      dotenv run -- python rabbitmq_consumer.py > rabbitmq_consumer.log 2>&1
+      ```
+      - 背景執行版本
+      ```sh
+      nohup dotenv run -- python chat_agent.py > chat_agent.log 2>&1 & nohup dotenv run -- gunicorn -c gunicorn.conf.py app:app > gunicorn.log 2>&1 & nohup dotenv run -- python rabbitmq_consumer.py > rabbitmq_consumer.log 2>&1 &
       ```
 
 ## 理解資料流
