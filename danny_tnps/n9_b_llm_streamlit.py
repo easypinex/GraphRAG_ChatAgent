@@ -34,9 +34,9 @@ assert os.path.exists(os.path.join(tiktoken_cache_dir, cache_key))
 
 
 embeddings = AzureOpenAIEmbeddings(
-    model =AZURE_EMB_MODLE ,
+    model=AZURE_EMB_MODLE,
     azure_deployment=AZURE_EMB_DEPLOYMENT,
-    azure_endpoint = AZURE_EMB_ENDPOINT,
+    azure_endpoint=AZURE_EMB_ENDPOINT,
     openai_api_version=AZURE_EMB_API_VERSION,
     api_key=AZURE_EMB_MODLE_API_KEY
 )
@@ -69,7 +69,7 @@ former_llm_recommand_topics = []
 
 query_info_by_chunk = [VECTOR_SEARCH_BY_CHUNK, 'emb_index', 'Chunk']
 query_info_by_pagetable = [VECTOR_SEARCH_BY_PAGETABLE, 'emb_index_rule', 'PageTable']
-query_info_by_chunk_Blanketsearch = [VECTOR_SEARCH_BY_CHUNK_BLANKETSEARCH , 'emb_index', 'Chunk']
+query_info_by_chunk_Blanketsearch = [VECTOR_SEARCH_BY_CHUNK_BLANKETSEARCH, 'emb_index', 'Chunk']
 
 # history = RedisChatMessageHistory(session_id=ID, redis_url=REDIS_URL)
 
@@ -82,7 +82,7 @@ if "history" not in st.session_state:
 
 AIMessage_temp = []
 def yield_func(query_feed_to_llm, qution):
-    for words in chain.stream({'refrence': query_feed_to_llm , 'input':qution}):
+    for words in chain.stream({'refrence': query_feed_to_llm, 'input': qution}):
         time.sleep(0.01)
         AIMessage_temp.append(words.content)
         yield words.content
@@ -110,16 +110,17 @@ if question := st.chat_input("What is up?"):
         json_results = [json_results_product, json_results_topic, json_results_ruletopic]
         data_topic_info_xxx = [data_topic_info, data_ruletopic_info]
 
-        query_result_by_chunk, query_result_by_pagetable = ask_from_neo4j(  redis_container_storage, \
-                                                                            llm_stream, \
-                                                                            kg, \
-                                                                            embeddings,\
-                                                                            question,\
-                                                                            query_info_by_xxx, \
-                                                                            json_results,\
-                                                                            data_topic_info_xxx,\
-                                                                            RESPONSETHREDHOLD  
-                                                                            )
+        query_result_by_chunk, query_result_by_pagetable = ask_from_neo4j(
+            redis_container_storage,
+            llm_stream,
+            kg,
+            embeddings,
+            question,
+            query_info_by_xxx,
+            json_results,
+            data_topic_info_xxx,
+            RESPONSETHREDHOLD
+        )
 
     # Display assistant response in chat message container
     with st.chat_message("assistant"):

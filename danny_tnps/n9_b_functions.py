@@ -118,7 +118,7 @@ def get_query_result(kg, embeddings, query_info, user_question, llm_recommand_pr
     return query_result
 
 
-def neo4j_vector_search(kg,embeddings, query_info, question, llm_recommand_product, llm_recommand_topics):
+def neo4j_vector_search(kg, embeddings, query_info, question, llm_recommand_product, llm_recommand_topics):
     question_emb = embeddings.embed_query(question)
     cypher_query = query_info[0]
     index_name = query_info[1]
@@ -126,10 +126,10 @@ def neo4j_vector_search(kg,embeddings, query_info, question, llm_recommand_produ
 
     similar = kg.query(cypher_query, 
                      params={
-                      'product':llm_recommand_product,
-                      'topics':llm_recommand_topics,  
+                      'product': llm_recommand_product,
+                      'topics': llm_recommand_topics,  
                       'question': question_emb, 
-                      'index_name':index_name, 
+                      'index_name': index_name, 
                       'node_label': node_label, 
                       'top_k': 1000})
     return similar
@@ -167,8 +167,7 @@ def AI_response(ID, chain_with_history, user_question, refrence):
 
 
 
-def ask_from_neo4j( redis_container_storage, llm_stream, kg, embeddings, user_question, query_info_by_xxx, json_results,data_topic_info_xxx, ResponseThredshold ):
-
+def ask_from_neo4j(redis_container_storage, llm_stream, kg, embeddings, user_question, query_info_by_xxx, json_results, data_topic_info_xxx, ResponseThredshold):
     product = []
     topics1 = []
     topics2 = []
@@ -178,7 +177,7 @@ def ask_from_neo4j( redis_container_storage, llm_stream, kg, embeddings, user_qu
 
     json_results_product = json_results[0]
     json_results_topic = json_results[1]
-    json_results_ruletopic =  json_results[2]
+    json_results_ruletopic = json_results[2]
 
     data_topic_info = data_topic_info_xxx[0]
     data_topic_info_by_rules = data_topic_info_xxx[1]
@@ -196,14 +195,13 @@ def ask_from_neo4j( redis_container_storage, llm_stream, kg, embeddings, user_qu
     print("▶ 投保規則 topicrule node 搜尋 next_topics2: {}".format(next_topics2))
 
     # 合併:
-    next_prodcut= next_prodcut1 + next_prodcut2
+    next_prodcut = next_prodcut1 + next_prodcut2
     next_prodcut = rm_duplicate(next_prodcut)
 
-
-    if len(next_prodcut)> 0:
+    if len(next_prodcut) > 0:
         for i, _ in enumerate(next_prodcut):
             redis_container_storage.rpush('product', next_prodcut[i])     
-        last_n_elements = redis_container_storage.lrange('product',len(next_prodcut)-2*(len(next_prodcut)) ,-1)
+        last_n_elements = redis_container_storage.lrange('product', len(next_prodcut)-2*(len(next_prodcut)), -1)
         product = [element.decode('utf-8') for element in last_n_elements]
 
         # product = next_prodcut
@@ -218,26 +216,26 @@ def ask_from_neo4j( redis_container_storage, llm_stream, kg, embeddings, user_qu
     print("▶ PRODUCT : {}  topics1 : {} ;  topics2 : {} ".format(next_prodcut, topics1, topics2))
 
     # (適用於模糊問題)
-    query_result_by_chunk = get_query_result(kg, embeddings, \
-                                            query_info_by_chunk, \
-                                            user_question,\
-                                            next_prodcut, \
-                                            next_topics1,\
-                                            threshold = ResponseThredshold)
+    query_result_by_chunk = get_query_result(kg, embeddings,
+                                            query_info_by_chunk,
+                                            user_question,
+                                            next_prodcut,
+                                            next_topics1,
+                                            threshold=ResponseThredshold)
     
-    query_result_by_pagetable = get_query_result(kg, embeddings, \
-                                            query_info_by_pagetable, \
-                                            user_question,\
-                                            next_prodcut, \
-                                            next_topics2,\
-                                            threshold = ResponseThredshold)
+    query_result_by_pagetable = get_query_result(kg, embeddings,
+                                            query_info_by_pagetable,
+                                            user_question,
+                                            next_prodcut,
+                                            next_topics2,
+                                            threshold=ResponseThredshold)
     # (適用於清楚問題)
-    query_result_by_chunk2 = get_query_result(kg, embeddings, \
-                                            query_info_by_chunk_Blanketsearch, \
-                                            user_question,\
-                                            next_prodcut, \
-                                            next_topics1,\
-                                            threshold = 0.75)
+    query_result_by_chunk2 = get_query_result(kg, embeddings,
+                                            query_info_by_chunk_Blanketsearch,
+                                            user_question,
+                                            next_prodcut,
+                                            next_topics1,
+                                            threshold=0.75)
 
     
     query_result_by_chunk += query_result_by_chunk2

@@ -104,13 +104,13 @@ def generate_response_for_query(chain, query_params):
         yield response
 
 def pickle_save(SAVE_PATH, data):
-    with open(SAVE_PATH , 'wb') as file:
-            pickle.dump(data, file)
+    with open(SAVE_PATH, 'wb') as file:
+        pickle.dump(data, file)
     return 
 
 def pickle_read(SAVE_PATH):
-    with open(SAVE_PATH , 'rb') as file:
-            data = pickle.load(file)
+    with open(SAVE_PATH, 'rb') as file:
+        data = pickle.load(file)
     return data
 
 def load_to_file_path(DEFAULT_PATH):
@@ -148,9 +148,9 @@ def pandas_to_dict_format(dict_page_pd):
     
     for page, dfs in dict_page_pd.items():
         str_list = []
-        for _ ,df in enumerate(dfs):
+        for _, df in enumerate(dfs):
             your_json = df.to_json(force_ascii=False)
-            stringformat = str(your_json) # 如要轉回diCT : json.loads(stringformat)
+            stringformat = str(your_json)  # 如要轉回diCT : json.loads(stringformat)
             str_list.append(stringformat)
         dict_page_str[page] = str_list
     return dict_page_str
@@ -227,21 +227,21 @@ def load_rule_pdf_to_dataframe(DEFAULT_PATH2):
     return data_frame
 
 def summary_manual_rule(data_frame): 
-    for index , str_data in enumerate(data_frame['content'].tolist()):
+    for index, str_data in enumerate(data_frame['content'].tolist()):
         pattern_articles = r"【(.*?)】"
         matches = re.findall(pattern_articles, str_data)
         if matches:
-            matches =matches[0].replace("【","")
-            matches =matches.replace("】","")
-            data_frame.at[index,'summary']= matches
+            matches = matches[0].replace("【", "")
+            matches = matches.replace("】", "")
+            data_frame.at[index, 'summary'] = matches
         else:
             pattern_appendix = r"^(附表.*?)(?=\n)"
             match = re.search(pattern_appendix, str_data)
             if match:
                 result = match.group(1)
-                data_frame.at[index,'summary']= result
+                data_frame.at[index, 'summary'] = result
             else:
-                data_frame.at[index,'summary']= str_data 
+                data_frame.at[index, 'summary'] = str_data 
     data_frame[data_frame['summary'] == '']
     data_frame[data_frame['summary'].isna()]
     return data_frame
@@ -265,7 +265,7 @@ def content_remodified(data_frame):
     return data_frame
 
 def ckip_to_seglist(ckip, data_frame, content): 
-    data_frame['seg_list'] =None
+    data_frame['seg_list'] = None
     for i in range(len(data_frame)):
         ws_results = ckip.do_CKIP_WS(content.iloc[i])
         pos_results = ckip.do_CKIP_POS(ws_results)
@@ -381,12 +381,12 @@ def Confirm_EmbeddingToken_is_Working(TIKTOKEN_CACHE_DIR, CACHE_KEY,embeddings):
     # # cache_key = hashlib.sha1(blobpath.encode()).hexdigest()
     # # print(cache_key) # 9b5ad71b2ce5302211f9c61530b329a4922fc6a4
     os.environ["TIKTOKEN_CACHE_DIR"] = TIKTOKEN_CACHE_DIR
-    print('TIKTOKEN 位置{}'.format(os.getenv("TIKTOKEN_CACHE_DIR")))
+    print('TIKTOKEN 位置: {}'.format(os.getenv("TIKTOKEN_CACHE_DIR")))
     assert os.path.exists(os.path.join(TIKTOKEN_CACHE_DIR, CACHE_KEY))
     input_text = "Hello, world"
     encoding = tiktoken.get_encoding("cl100k_base")
     vector = embeddings.embed_query(input_text)
-    return("輸入文字: {} ; Embedding 後: {}".format(input_text, vector[:3]))
+    return "輸入文字: {} ; Embedding 後: {}".format(input_text, vector[:3])
 
 class Ckip:  # step 2: 文章斷字斷詞
     def __init__(self, STOP_WORDS_PATH):
@@ -476,8 +476,8 @@ class LDA_Category:
         self.seg_lst = data_frame["seg_list"].tolist()
         self.dictionary = corpora.Dictionary(self.seg_lst)
         self.corpus = [self.dictionary.doc2bow(i) for i in self.seg_lst]
-        self.topic_setting=TOPIC_SETTING
-        self.passes=PASSES
+        self.topic_setting = TOPIC_SETTING
+        self.passes = PASSES
         
     def _coherence(self,i):
         self.ldamodel = LdaModel(corpus=self.corpus, num_topics=i, id2word=self.dictionary, passes=self.passes, random_state=42)
