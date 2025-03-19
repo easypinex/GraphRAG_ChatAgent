@@ -1,0 +1,13 @@
+ckip_model/bert-base-chinese-ner
+ckip_model/bert-base-chinese-pos
+ckip_model/bert-base-chinese-ws
+
+html/
+
+neo4j_data/
+
+pdf/**/*.pdf
+
+pickles/**.pkl
+
+redis_data/dump.rdb

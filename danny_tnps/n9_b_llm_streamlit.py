@@ -1,6 +1,6 @@
 """
 docker run -d --name redis-stack -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
-streamlit run n9_b_llm_streamlit.py
+streamlit run n9_b_llm_streamlit.py --global.developmentMode=false
  python -m nvitop
 """
 from n9_b_imports import *
@@ -10,7 +10,6 @@ from n9_b_configs import *
 warnings.filterwarnings("ignore")
 load_dotenv()
 
-# REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 redis_container_storage = redis.Redis(host='localhost', port=6379, db=0) # Redis Container 要記得先起來.....
 
 product = redis_container_storage.lrange('product', 0, -1) 
@@ -28,8 +27,8 @@ with open('./pickles/data_ruletopic_info.pkl', 'rb') as file:
 
 #離線載入 tiktoken : https://blog.csdn.net/qq_35054222/article/details/137127660
 blobpath = "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
-cache_key = hashlib.sha1(blobpath.encode()).hexdigest()
-tiktoken_cache_dir = "/home/u004134/TestFolder/LLM_Soft/.tiktoken"
+cache_key = "9b5ad71b2ce5302211f9c61530b329a4922fc6a4"
+tiktoken_cache_dir = "./.tiktoken"
 os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 assert os.path.exists(os.path.join(tiktoken_cache_dir, cache_key))
 
@@ -150,65 +149,3 @@ if question := st.chat_input("What is up?"):
 
     # Add assistant response to chat history
     st.session_state.messages.append({"role": "assistant", "content": response})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

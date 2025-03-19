@@ -1,7 +1,17 @@
+import psutil
+
 from n9_a_configs import *
 from n9_a_imports import *
 
-
+def check_memory():
+    """
+    檢查系統記憶體大小
+    返回：
+        bool: 如果記憶體 >= 72GB 返回 True，否則返回 False
+    """
+    memory = psutil.virtual_memory()
+    memory_gb = memory.total / (1024**3)  # 轉換為 GB
+    return memory_gb >= 72
 
 # 去重複
 def rm_duplicate(seq):
@@ -10,21 +20,64 @@ def rm_duplicate(seq):
     return [x for x in seq if not (x in seen or seen_add(x))]
     
 def policy_product_chunk_rule(pages):
+    """
+    此函數用於處理政策文檔的分塊規則，主要處理包含【】標記的條文內容。
+    處理流程：
+    1. 合併所有頁面內容
+    2. 按【】標記分割條文
+    3. 處理前言部分
+    4. 處理附表部分
+    
+    示例輸入：
+    pages = [
+        Page(page_content="前言內容【第一條】條文1內容【第二條】條文2內容附表1"),
+        Page(page_content="附表2內容")
+    ]
+    
+    示例輸出：
+    [
+        "前言內容",
+        "【第一條】條文1內容",
+        "【第二條】條文2內容",
+        "附表1",
+        "附表2內容"
+    ]
+    """
+    # 初始化一個空字串，用來儲存所有頁面的內容
     all_content = ""
+    # 遍歷每一頁，將頁面的內容累加到 all_content 中
     for page in pages: 
         all_content += page.page_content
-    # 按條文拆chunk
+    
+    # 使用正則表達式按條文拆分內容，模式為匹配以「【」開頭的條文
+    # 例如：如果 all_content = "【條文1】內容1【條文2】內容2"
+    # 那麼 match 將會是 ["【條文1】內容1", "【條文2】內容2"]
     pattern = r'【.*?】.*?(?=【|$)'
     match = re.findall(pattern, all_content, re.DOTALL)
-    # 補頭:
+    
+    # 補充第一個條文的內容
+    # 例如：如果 all_content = "前言【條文1】內容1【條文2】內容2"
+    # 那麼 first_chunk 將會是 "前言"
     pattern = r'^(.*?)【'
     first_chunk = re.findall(pattern, all_content, re.DOTALL)[0]
-    match.insert(0,first_chunk)
-    # 補尾巴:
-    # 拆分最後一筆資料
+    
+    # 將第一個條文插入到結果的最前面
+    # 例如：match 現在是 ["【條文1】內容1", "【條文2】內容2"]
+    # 插入後 match 將變成 ["前言", "【條文1】內容1", "【條文2】內容2"]
+    match.insert(0, first_chunk)
+    
+    # 補充最後一筆資料的尾巴
+    # 將最後一筆資料根據「附表」進行拆分
+    # 例如：如果 match[-1] = "內容2附表1"
+    # 那麼 split_entries 將會是 ["內容2", "1"]
     split_entries = match[-1].split('附表')
-    # 將拆分後的資料依序補在後面
+    
+    # 將拆分後的資料依序補在結果的後面
+    # 例如：match 現在是 ["前言", "【條文1】內容1", "【條文2】內容2"]
+    # 插入後 match 將變成 ["前言", "【條文1】內容1", "【條文2】內容2", "內容2", "附表1"]
     match = match[:-1] + [split_entries[0]] + ['附表' + entry for entry in split_entries[1:]]
+    
+    # 返回拆分後的結果
     return match 
 
 def dict_to_string(data):
@@ -38,8 +91,17 @@ def dict_to_string(data):
     return "\n".join(result)
 
 def generate_response_for_query(chain, query_params):
-    for r in chain.stream(query_params):
-        yield r
+    """
+    根據不同的 LLM 類型生成回應
+    """
+    if isinstance(chain, AzureChatOpenAI):
+        # Azure OpenAI 的處理方式
+        for r in chain.stream(query_params):
+            yield r
+    else:
+        # Ollama 的處理方式
+        response = chain.invoke(query_params)
+        yield response
 
 def pickle_save(SAVE_PATH, data):
     with open(SAVE_PATH , 'wb') as file:
@@ -94,26 +156,39 @@ def pandas_to_dict_format(dict_page_pd):
     return dict_page_str
 
 def load_pdf_to_dataframe(DEFAULT_PATH): # step 0: 先把資料轉pandas
+    # 初始化一個空的列表，用來儲存所有內容
     ALL_CONTENTS = []
+    # 初始化兩個空的列表，分別用來儲存檔案名稱和內容
     dict_col1 = []
     dict_col2 = []
+    # 獲取指定路徑下所有PDF檔案的檔案名稱
     file_path = load_to_file_path(DEFAULT_PATH)
     
+    # 遍歷每個檔案名稱
     for index, _ in enumerate(file_path):
+        # 獲取當前檔案的完整路徑
         FP = file_path[index]    
+        # 使用PyPDFLoader載入PDF檔案並將其分割成頁面
         loader = PyPDFLoader(DEFAULT_PATH + FP)
         pages = loader.load_and_split()
+        # 對每一頁進行處理，提取出有用的內容
         ALL_CONTENTS = policy_product_chunk_rule(pages)
+        # 將檔案名稱重複添加到dict_col1中，數量與ALL_CONTENTS相同
         dict_col1 += [FP] * len(ALL_CONTENTS)
+        # 將提取的內容添加到dict_col2中
         dict_col2 += ALL_CONTENTS
+    # 將檔案名稱和內容組合成一個字典
     data_dict = {
         'filename':dict_col1,
         'content': dict_col2}
     
+    # 檢查檔案名稱和內容的長度是否一致
     if len(dict_col1) == len(dict_col2):
+        # 如果一致，將字典轉換為DataFrame並新增一個summary欄位
         data_frame = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in data_dict.items()]))
         data_frame['summary'] = None
     else: 
+        # 如果不一致，返回一個空的DataFrame並提示用戶檢查
         data_frame = pd.DataFrame()
         print("Dataframe  is Empty, Please check ...")
     return data_frame
@@ -220,20 +295,40 @@ def data_category_sort(data):
     data_topic_info = data_topic_info.sort_values(by='Category_int')
     return data_topic_info
 
-def topic_summary(ollama_prompt, data):
+def topic_summary(chain, data, chain_type="azure"):
+    """
+    根據不同的 LLM 類型生成主題總結
+    
+    Args:
+        chain: LLM chain
+        data: 主題資料
+        chain_type: LLM 類型 ("azure" 或 "ollama")
+    """
     ollama_inference_count = 0
     topics_list = []
     for cat in rm_duplicate(data.topic_info['Category'].tolist()): 
-        q =','.join(str(x) for x in  data.topic_info[data.topic_info['Category']==cat]["Term"].tolist())
-        if cat !="Default":
-            query_params = {'input':q}
-            ollama_inference_count +=1
+        q = ','.join(str(x) for x in data.topic_info[data.topic_info['Category']==cat]["Term"].tolist())
+        if cat != "Default":
+            query_params = {'input': q}
+            ollama_inference_count += 1
             topics_sentance = "Topic{}: ".format(ollama_inference_count)
             print("Topic{} seg_list:{}\n".format(ollama_inference_count, q))
             print("▶ ")
-            for char in generate_response_for_query(ollama_prompt, query_params): 
-                print(char, end ='', flush =True)
-                topics_sentance += char
+            
+            # 根據不同的 LLM 類型處理回應
+            if chain_type == "azure":
+                for char in generate_response_for_query(chain, query_params):
+                    if hasattr(char, 'content'):
+                        print(char.content, end='', flush=True)
+                        topics_sentance += char.content
+                    else:
+                        print(char, end='', flush=True)
+                        topics_sentance += str(char)
+            else:  # ollama
+                response = chain.invoke(query_params)
+                print(response, end='', flush=True)
+                topics_sentance += response
+                
             print("\n")
             topics_list.append(topics_sentance)
     return topics_list
@@ -314,13 +409,15 @@ class Ckip:  # step 2: 文章斷字斷詞
         # print("Initializing drivers ... NER")
         # ner_driver = CkipNerChunker(model="bert-base", device=0)
         # print("Initializing drivers ... all done")
+
         ## Initialize drivers (離線) 
+        device = 0 if torch.cuda.is_available() else -1 # 應對 MacOS 不能使用 CUDA 的問題
         print("Initializing drivers ... WS")
-        self.ws_driver = CkipWordSegmenter(model_name="./ckip_model/bert-base-chinese-ws", device=0)
+        self.ws_driver = CkipWordSegmenter(model_name="./ckip_model/bert-base-chinese-ws", device=device)
         print("Initializing drivers ... POS")
-        self.pos_driver = CkipPosTagger(model_name="./ckip_model/bert-base-chinese-pos", device=0)
+        self.pos_driver = CkipPosTagger(model_name="./ckip_model/bert-base-chinese-pos", device=device)
         print("Initializing drivers ... NER")
-        self.ner_driver = CkipNerChunker(model_name="./ckip_model/bert-base-chinese-ner", device=0)
+        self.ner_driver = CkipNerChunker(model_name="./ckip_model/bert-base-chinese-ner", device=device)
         print("Initializing drivers ... all done")
         print()
 
