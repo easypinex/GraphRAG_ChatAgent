@@ -1,65 +1,60 @@
 # 標準庫
-import re
-import os
-import csv
 import ast
-import io
-import time
-import json
-import pickle
-import warnings
+import csv
 import hashlib
 import inspect
+import io
+import json
+import os
+import pickle
+import re
+import time
 import tiktoken
 import tiktoken_ext.openai_public
+import warnings
 
 # 第三方庫
-import redis
+import difflib
 import jieba
-import difflib                
-import torch
-import pdfplumber
-import pandas as pd
-import numpy as np
-import streamlit as st
-from summarizer import Summarizer
-from dotenv import load_dotenv
-from difflib import SequenceMatcher
-from fuzzywuzzy import fuzz   
-
-from collections import defaultdict, OrderedDict, Counter
-
-import matplotlib.pyplot as plt
 import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pdfplumber
 import pyLDAvis.gensim_models
-
-import textwrap
+import redis
+import torch
+from collections import Counter, OrderedDict, defaultdict
+from difflib import SequenceMatcher
+from dotenv import load_dotenv
+from fuzzywuzzy import fuzz
 from keybert import KeyBERT
-from ckip_transformers.nlp import CkipWordSegmenter, CkipPosTagger, CkipNerChunker
+from summarizer import Summarizer
+
+# CKIP相關
+from ckip_transformers.nlp import CkipNerChunker, CkipPosTagger, CkipWordSegmenter
 
 # LangChain 相關
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_community.graphs import Neo4jGraph
+from langchain.chains import GraphCypherQAChain, RetrievalQA, RetrievalQAWithSourcesChain
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.graphs import Neo4jGraph
 from langchain_community.llms import Ollama
 from langchain_community.vectorstores import Neo4jVector
-from langchain.chains import RetrievalQA, GraphCypherQAChain, RetrievalQAWithSourcesChain
-from langchain_text_splitters import RecursiveCharacterTextSplitter, CharacterTextSplitter
-from langchain.schema import HumanMessage, SystemMessage, AIMessage
-from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_openai import ChatOpenAI
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings, ChatOpenAI
 from langchain_redis import RedisChatMessageHistory
+from langchain.schema import AIMessage, HumanMessage, SystemMessage
+from langchain_text_splitters import CharacterTextSplitter, RecursiveCharacterTextSplitter
 
 # 機器學習相關
 import gensim
 from gensim import corpora, models
 from gensim.models.coherencemodel import CoherenceModel
 from gensim.models.ldamodel import LdaModel
+from numba import cuda, jit
 from pprint import pprint
-from numba import jit, cuda 
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity

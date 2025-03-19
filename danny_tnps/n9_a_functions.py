@@ -54,12 +54,14 @@ def policy_product_chunk_rule(pages):
     # 那麼 match 將會是 ["【條文1】內容1", "【條文2】內容2"]
     pattern = r'【.*?】.*?(?=【|$)'
     match = re.findall(pattern, all_content, re.DOTALL)
+    print(f"條文: {json.dumps(match, indent=2, ensure_ascii=False)}")
     
     # 補充第一個條文的內容
     # 例如：如果 all_content = "前言【條文1】內容1【條文2】內容2"
     # 那麼 first_chunk 將會是 "前言"
     pattern = r'^(.*?)【'
     first_chunk = re.findall(pattern, all_content, re.DOTALL)[0]
+    print(f"first_chunk: {json.dumps(first_chunk, indent=2, ensure_ascii=False)}")
     
     # 將第一個條文插入到結果的最前面
     # 例如：match 現在是 ["【條文1】內容1", "【條文2】內容2"]
@@ -71,11 +73,13 @@ def policy_product_chunk_rule(pages):
     # 例如：如果 match[-1] = "內容2附表1"
     # 那麼 split_entries 將會是 ["內容2", "1"]
     split_entries = match[-1].split('附表')
+    print(f"split_entries: {json.dumps(split_entries, indent=2, ensure_ascii=False)}")
     
     # 將拆分後的資料依序補在結果的後面
     # 例如：match 現在是 ["前言", "【條文1】內容1", "【條文2】內容2"]
     # 插入後 match 將變成 ["前言", "【條文1】內容1", "【條文2】內容2", "內容2", "附表1"]
     match = match[:-1] + [split_entries[0]] + ['附表' + entry for entry in split_entries[1:]]
+    print(f"final match: {json.dumps(match, indent=2, ensure_ascii=False)}")
     
     # 返回拆分後的結果
     return match 
@@ -113,15 +117,15 @@ def pickle_read(SAVE_PATH):
         data = pickle.load(file)
     return data
 
-def load_to_file_path(DEFAULT_PATH):
-    file_path = []
+def list_pdf_from_file_path(DEFAULT_PATH):
+    pdf_names = []
     for filename in os.listdir(DEFAULT_PATH):
         if filename.endswith('.pdf'):
-            file_path.append(filename)
-    return file_path
+            pdf_names.append(filename)
+    return pdf_names
 
-def pdf_to_pages(FP):
-    pdf = pdfplumber.open(FP) 
+def pdf_to_pages(pdf_name):
+    pdf = pdfplumber.open(pdf_name) 
     pages = pdf.pages
     table_with_page = dict()
     for index, page in enumerate(pages):
@@ -159,65 +163,70 @@ def load_pdf_to_dataframe(DEFAULT_PATH): # step 0: 先把資料轉pandas
     # 初始化一個空的列表，用來儲存所有內容
     ALL_CONTENTS = []
     # 初始化兩個空的列表，分別用來儲存檔案名稱和內容
-    dict_col1 = []
-    dict_col2 = []
+    pdf_name_list = []
+    content_list = []
     # 獲取指定路徑下所有PDF檔案的檔案名稱
-    file_path = load_to_file_path(DEFAULT_PATH)
+    pdf_names = list_pdf_from_file_path(DEFAULT_PATH)
     
     # 遍歷每個檔案名稱
-    for index, _ in enumerate(file_path):
+    for index, _ in enumerate(pdf_names):
         # 獲取當前檔案的完整路徑
-        FP = file_path[index]    
+        pdf_name = pdf_names[index]    
+
         # 使用PyPDFLoader載入PDF檔案並將其分割成頁面
-        loader = PyPDFLoader(DEFAULT_PATH + FP)
+        loader = PyPDFLoader(DEFAULT_PATH + pdf_name)
         pages = loader.load_and_split()
+
         # 對每一頁進行處理，提取出有用的內容
         ALL_CONTENTS = policy_product_chunk_rule(pages)
+
         # 將檔案名稱重複添加到dict_col1中，數量與ALL_CONTENTS相同
-        dict_col1 += [FP] * len(ALL_CONTENTS)
+        pdf_name_list += [pdf_name] * len(ALL_CONTENTS)
         # 將提取的內容添加到dict_col2中
-        dict_col2 += ALL_CONTENTS
+        content_list += ALL_CONTENTS
+
     # 將檔案名稱和內容組合成一個字典
     data_dict = {
-        'filename':dict_col1,
-        'content': dict_col2}
+        'filename': pdf_name_list,
+        'content': content_list}
     
     # 檢查檔案名稱和內容的長度是否一致
-    if len(dict_col1) == len(dict_col2):
-        # 如果一致，將字典轉換為DataFrame並新增一個summary欄位
+    if len(pdf_name_list) == len(content_list):
+        # 將 value 轉成 Series 之後整個 dict 轉成 DataFrame
         data_frame = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in data_dict.items()]))
         data_frame['summary'] = None
     else: 
         # 如果不一致，返回一個空的DataFrame並提示用戶檢查
         data_frame = pd.DataFrame()
-        print("Dataframe  is Empty, Please check ...")
+        print("Dataframe is Empty, Please check ...")
+        
     return data_frame
 
 def load_rule_pdf_to_dataframe(DEFAULT_PATH2): 
     ALL_CONTENTS = []
-    dict_col1 = []
+    pdf_name_list = []
     dict_col2 = []
     dict_col3 = []
-    file_path = load_to_file_path(DEFAULT_PATH2)
+    pdf_names = list_pdf_from_file_path(DEFAULT_PATH2)
 
-    for index, _ in enumerate(file_path):
-        FP = file_path[index]  
-        table_with_page = pdf_to_pages(DEFAULT_PATH2 + "/"+ FP)
+    for index, _ in enumerate(pdf_names):
+        pdf_name = pdf_names[index]  
+        table_with_page = pdf_to_pages(DEFAULT_PATH2 + "/"+ pdf_name)
         dict_page_pd, page_list = data_split(table_with_page)
         ALL_CONTENTS = pandas_to_dict_format(dict_page_pd)
 
         page__wtih_data_list=[]
         for key, value in ALL_CONTENTS.items():
             page__wtih_data_list+=(value)
-        dict_col1 += [FP] * len(page__wtih_data_list)
+        pdf_name_list += [pdf_name] * len(page__wtih_data_list)
         dict_col2 += page__wtih_data_list
         dict_col3 += page_list
     data_dict = {
-        'filename':dict_col1,
+        'filename':pdf_name_list,
         'content': dict_col2,
         'page': dict_col3
     }
-    if len(dict_col1) == len(dict_col2):
+    if len(pdf_name_list) == len(dict_col2):
         data_frame = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in data_dict.items()]))
         data_frame["content_remodified"] = None
         data_frame['seg_list']= None
@@ -227,23 +236,30 @@ def load_rule_pdf_to_dataframe(DEFAULT_PATH2):
     return data_frame
 
 def summary_manual_rule(data_frame): 
+    # 遍歷資料框中的每一行，提取內容
     for index, str_data in enumerate(data_frame['content'].tolist()):
+        # 定義正則表達式，用於匹配條文標記
         pattern_articles = r"【(.*?)】"
-        matches = re.findall(pattern_articles, str_data)
-        if matches:
-            matches = matches[0].replace("【", "")
-            matches = matches.replace("】", "")
-            data_frame.at[index, 'summary'] = matches
+        # 使用正則表達式查找所有匹配的條文
+        summary_str = re.findall(pattern_articles, str_data)
+        if summary_str:
+            # 如果找到匹配的條文，去除標記並將結果存入 summary 欄位
+            summary_str = summary_str[0].replace("【", "")
+            summary_str = summary_str.replace("】", "")
+            data_frame.at[index, 'summary'] = summary_str
         else:
+            # 如果未找到條文，檢查是否有附表內容
             pattern_appendix = r"^(附表.*?)(?=\n)"
-            match = re.search(pattern_appendix, str_data)
-            if match:
-                result = match.group(1)
-                data_frame.at[index, 'summary'] = result
+            appendix_match = re.search(pattern_appendix, str_data)
+            if appendix_match:
+                # 如果找到附表內容，將其存入 summary 欄位
+                appendix_str = appendix_match.group(1)
+                data_frame.at[index, 'summary'] = appendix_str
             else:
+                # 如果都未找到，將原始內容存入 summary 欄位 (前言會把原本內容放入summary)
                 data_frame.at[index, 'summary'] = str_data 
-    data_frame[data_frame['summary'] == '']
-    data_frame[data_frame['summary'].isna()]
+
+    # 返回更新後的資料框
     return data_frame
 
 def content_remodified(data_frame):
@@ -265,12 +281,19 @@ def content_remodified(data_frame):
     return data_frame
 
 def ckip_to_seglist(ckip, data_frame, content): 
+    # 為資料框新增一個名為 'seg_list' 的欄位，初始值為 None
     data_frame['seg_list'] = None
+    # 遍歷資料框中的每一行
     for i in range(len(data_frame)):
+        # 使用 CKIP 進行斷詞，範例輸出: ['這', '是', '一', '個', '範例']
         ws_results = ckip.do_CKIP_WS(content.iloc[i])
+        # 使用 CKIP 進行詞性標註，範例輸出: [('這', '代名詞'), ('是', '動詞'), ('一', '數詞'), ('個', '量詞'), ('範例', '名詞')]
         pos_results = ckip.do_CKIP_POS(ws_results)
+        # 清理斷詞結果，保留重要詞性的詞彙，範例輸出: ['這', '是', '範例']
         word_lst = ckip.cleaner(ws_results, pos_results)
+        # 將處理後的詞彙列表存入資料框的 'seg_list' 欄位
         data_frame.at[i, 'seg_list'] = word_lst
+    # 返回更新後的資料框
     return data_frame 
 
 def topic_lsit_segment(ckip,topics_list, data_topic_info):
@@ -289,10 +312,15 @@ def Category_split(data):
     return int(data.split("Topic")[1])
 
 def data_category_sort(data):
+    # 從資料中提取主題資訊，包括詞彙和類別
     data_topic_info = data.topic_info[["Term","Category"]]
-    data_topic_info = data_topic_info[data_topic_info["Category"]!="Default"]
+    # 過濾掉類別為 "Default" 的項目
+    data_topic_info = data_topic_info[data_topic_info["Category"] != "Default"]
+    # 將類別轉換為整數，以便於排序
     data_topic_info["Category_int"] = data_topic_info["Category"].apply(Category_split)
+    # 根據整數類別進行排序
     data_topic_info = data_topic_info.sort_values(by='Category_int')
+    # 返回排序後的主題資訊
     return data_topic_info
 
 def topic_summary(chain, data, chain_type="azure"):
@@ -473,55 +501,94 @@ class Ckip:  # step 2: 文章斷字斷詞
 
 class LDA_Category:
     def __init__(self, data_frame, TOPIC_SETTING, PASSES):
-        self.seg_lst = data_frame["seg_list"].tolist()
+        # 初始化LDA_Category類別，接收資料框、主題設定和迭代次數
+        self.seg_lst = data_frame["seg_list"].tolist()  # 將資料框中的斷詞列表轉換為列表
+        # 建立字典，將斷詞列表轉換為一個字典對象
+        # 字典的每個鍵是唯一的詞彙，值是該詞彙在語料庫中的ID
+        # 例如，假設self.seg_lst包含以下內容: [['這', '是', '一', '個', '範例'], ['這', '是', '另一', '個', '範例']]
+        # 則字典可能會生成如下:
+        # {0: '這', 1: '是', 2: '一', 3: '個', 4: '範例', 5: '另一'}
         self.dictionary = corpora.Dictionary(self.seg_lst)
+        # 將斷詞列表轉換為語料庫
+        # self.corpus是由字典生成的語料庫，每個文檔都被轉換為一個詞彙ID和其出現次數的元組列表
+        # 例如，假設self.seg_lst的第一個元素為['這', '是', '一', '個', '範例']，則self.corpus的對應元素可能為[(0, 1), (1, 1), (2, 1), (3, 1), (4, 1)]
         self.corpus = [self.dictionary.doc2bow(i) for i in self.seg_lst]
-        self.topic_setting = TOPIC_SETTING
-        self.passes = PASSES
+        self.topic_setting = TOPIC_SETTING  # 設定主題數量
+        self.passes = PASSES  # 設定LDA模型的迭代次數
         
-    def _coherence(self,i):
-        self.ldamodel = LdaModel(corpus=self.corpus, num_topics=i, id2word=self.dictionary, passes=self.passes, random_state=42)
-        ldacm = CoherenceModel(model=self.ldamodel, texts=self.seg_lst, dictionary=self.dictionary, coherence="c_v")
-        return ldacm.get_coherence()
+    def _coherence(self, i):
+        """
+        LdaModel說明:
+
+        corpus = [
+            ["蘋果", "香蕉", "水果", "健康"],
+            ["狗", "貓", "動物", "寵物"],
+            ["電影", "電視", "娛樂"]
+        ]
+
+        # 指定 LdaModel 將詞彙分類成兩個主題
+        lda_model = LdaModel(corpus, num_topics=2, id2word=dictionary, passes=10)
+
+        最後，我們可以查看每個主題的關鍵詞，以及詞彙的權重：
+        for idx, topic in lda_model.print_topics(-1):
+            print(f"主題 {idx}: {topic}")
+
+        例如，假設我們的模型識別出以下主題：
+        [(0, '0.10*"蘋果" + 0.10*"香蕉" + 0.10*"水果" + 0.10*"健康"'),
+        (1, '0.15*"狗" + 0.15*"貓" + 0.15*"動物" + 0.15*"寵物"'),
+        (2, '0.20*"電影" + 0.20*"電視" + 0.20*"娛樂"')]
+        """
+        self.ldamodel = LdaModel(corpus=self.corpus, num_topics=i, id2word=self.dictionary, passes=self.passes, random_state=42)  # 建立LDA模型
+        for idx, topic in self.ldamodel.print_topics(-1):
+            print(f"主題 {idx}: {topic}")
+        """
+        # 假設我們發現主題 0 的一致性分數較高，而主題 1 的一致性分數較低
+        # 這表明主題 0 的詞彙之間的關聯性較強，而主題 1 的詞彙之間的關聯性較弱。
+
+        通常會選擇一致性高的主題數量
+        """
+        ldacm = CoherenceModel(model=self.ldamodel, texts=self.seg_lst, dictionary=self.dictionary, coherence="c_v")  # 計算一致性模型
+        return ldacm.get_coherence()  # 返回一致性值
     
     def _coherence_count(self):
-        self.x = range(1,self.topic_setting+1)
-        self.y = [self._coherence(i) for i in self.x]
-        return 
+        # 計算不同主題數量下的一致性值
+        self.x = range(1, self.topic_setting + 1)  # 主題數量範圍
+        self.y = [self._coherence(i) for i in self.x]  # 計算每個主題數量的一致性值
 
     def _gen_number_of_topics(self):
-        top_five_indices = sorted(range(len(self.y)), key=lambda i: self.y[i], reverse=True)[:5]
-        self.num_topics = sorted(top_five_indices, reverse= True)[0]
-        print(self.num_topics)
-        return 
+        # 搜尋最高一致性的主題數量
+        top_five_indices = sorted(range(len(self.y)), key=lambda i: self.y[i], reverse=True)[:5]  # 獲取前五高的一致性值的索引
+        self.num_topics = sorted(top_five_indices, reverse=True)[0]  # 獲取最佳主題數量
 
     def gen_data_topic_info(self, SAVE_NAME, IMG_PATH):
-        _ = self._coherence_count()
-        _ = self._gen_number_of_topics()
-        lda = LdaModel(self.corpus, num_topics = self.num_topics, id2word = self.dictionary, passes = self.passes ,random_state = 42) # passes = 30
-        # pyLDAvis.enable_notebook()
-        self.data = pyLDAvis_gensim_models.prepare(lda , self.corpus, self.dictionary)
-        _ = self._save_ldavis(SAVE_NAME, IMG_PATH)
-        _ = self._save_plot(SAVE_NAME, IMG_PATH)
-        return self.data
+        # 生成主題資料信息
+        _ = self._coherence_count()  # 計算一致性值
+        _ = self._gen_number_of_topics()  # 生成最佳主題數量
+        lda = LdaModel(self.corpus, num_topics=self.num_topics, id2word=self.dictionary, passes=self.passes, random_state=42)  # 建立最終LDA模型
+        # pyLDAvis_gensim_models.prepare用於準備LDA模型的可視化數據，輸出包含主題的分佈、詞彙的關聯性等信息，便於進行主題模型的分析和可視化。
+        self.data = pyLDAvis_gensim_models.prepare(lda, self.corpus, self.dictionary)
+        _ = self._save_ldavis(SAVE_NAME, IMG_PATH)  # 保存LDA可視化結果
+        _ = self._save_plot(SAVE_NAME, IMG_PATH)  # 保存一致性圖
+        return self.data  # 返回可視化數據
 
     def _save_plot(self, SAVE_NAME, IMG_PATH):
-        plt.plot(self.x,self.y)
-        plt.xlabel("主題數目")
-        plt.ylabel("coherence大小")
-        plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei"]
-        matplotlib.rcParams["axes.unicode_minus"] = False
-        plt.title("主題-coherence變化情形")
-        plt.show()
-        plt.savefig("{}/twlife_{}分類_coherence變化情形.png".format(IMG_PATH,SAVE_NAME) )
+        # 保存一致性圖
+        plt.plot(self.x, self.y)  # 繪製一致性圖
+        plt.xlabel("主題數目")  # X軸標籤
+        plt.ylabel("coherence大小")  # Y軸標籤
+        plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei"]  # 設定字體
+        matplotlib.rcParams["axes.unicode_minus"] = False  # 顯示負號
+        plt.title("主題-coherence變化情形")  # 圖表標題
+        plt.show()  # 顯示圖表
+        plt.savefig("{}/twlife_{}分類_coherence變化情形.png".format(IMG_PATH, SAVE_NAME))  # 保存圖表
         return 
         
     def _save_ldavis(self, SAVE_NAME, IMG_PATH):
-        print(self.data)
-        _ = pyLDAvis.save_html(self.data, "{}/twlife_{}分類.html".format(IMG_PATH,SAVE_NAME) )
+        # 保存LDA可視化結果
+        print(self.data)  # 輸出可視化數據
+        _ = pyLDAvis.save_html(self.data, "{}/twlife_{}分類.html".format(IMG_PATH, SAVE_NAME))  # 保存為HTML文件
         # 遇到問題，需修改套件程式碼: https://github.com/bmabey/pyLDAvis/issues/69 
         return 
-
 
 
 """ 以下為 Create Ndoe Function"""

@@ -13,6 +13,7 @@ import hashlib
 import inspect
 import tiktoken
 import tiktoken_ext.openai_public
+from pprint import pprint
 
 # 第三方庫
 import jieba
@@ -20,6 +21,10 @@ import difflib
 import torch
 import pdfplumber
 import pandas as pd
+pd.set_option('display.max_rows', None)  # 顯示所有列
+pd.set_option('display.max_columns', None)  # 顯示所有欄位
+pd.set_option('display.width', None)  # 自適應寬度
+pd.set_option('display.max_colwidth', None)  # 不截斷內容
 import numpy as np
 import streamlit as st
 from summarizer import Summarizer

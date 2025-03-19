@@ -10,8 +10,8 @@ def rm_duplicate(seq):
 
 def extract_topics(text):
     # 正則表達式來找到所有 'topic' 後面跟著兩位數字的情況
-    pattern =  r'topic\d{1,2}'
-    return re.findall(pattern, text,  re.IGNORECASE)
+    pattern = r"topic\d{1,2}"
+    return re.findall(pattern, text, re.IGNORECASE)
 
 # 定義一個分詞函數
 def jieba_tokenizer(text):

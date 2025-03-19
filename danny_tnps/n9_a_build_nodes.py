@@ -8,19 +8,23 @@ embeddings = AzureOpenAIEmbeddings(
     azure_deployment=AZURE_EMB_DEPLOYMENT,
     azure_endpoint=AZURE_EMB_ENDPOINT,
     openai_api_version=AZURE_EMB_API_VERSION,
-    api_key=AZURE_EMB_MODLE_API_KEY
+    api_key=AZURE_EMB_MODLE_API_KEY,
 )
 
 print(Confirm_EmbeddingToken_is_Working(TIKTOKEN_CACHE_DIR, CACHE_KEY, embeddings))
 
-kg = Neo4jGraph(url=NEO4J_URI, username=NEO4J_USERNAME, password=NEO4J_PASSWORD, database=NEO4J_DATABASE)
-# 清空 
+kg = Neo4jGraph(
+    url=NEO4J_URI,
+    username=NEO4J_USERNAME,
+    password=NEO4J_PASSWORD,
+    database=NEO4J_DATABASE,
+)
+# 清空
 _ = kg.query(DELETE_ALL_NODES)
 _ = kg.query(DELETE_ALL_VECTOR_INDEX1)
 _ = kg.query(DELETE_ALL_VECTOR_INDEX2)
 nodes_count = kg.query(CHECK_NODE_CLEANED)
-print("*** 目前資料庫node數為: {} *** \n".format(nodes_count))
-
+print(f"*** 目前資料庫node數為: {nodes_count} *** \n")
 
 
 """=========================== 建立條款 Nodes ==========================="""
