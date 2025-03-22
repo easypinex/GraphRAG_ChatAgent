@@ -40,24 +40,31 @@ def main():
         sys.exit("Dataframe 處理後為空值，請確認檔案路徑與檔案是否正確")
     else:
         data_frame = content_remodified(data_frame)  # step 1: 產生 content_remodified 欄位
+        print("data_frame_with_content_remodified:\n", data_frame)
         content = data_frame["content_remodified"]
         data_frame = ckip_to_seglist(ckip, data_frame, content)  # step 2: 斷字斷詞拆出 seg list，並寫入dataframe
+        print("data_frame:\n", data_frame)
         lda_cat = LDA_Category(data_frame, TOPIC_SETTING, PASSES)
-        data = lda_cat.gen_data_topic_info(SAVE_NAME2, IMG_PATH)  # step 3: 分主題
+        data = lda_cat.gen_data_topic_info(SAVE_NAME, IMG_PATH)  # step 3: 分主題
+        print("data:\n", data)
         data_topic_info = data_category_sort(data)  # step 4: 依主題topic1~ topicx排序
+        print("data_topic_info:\n", data_topic_info)
         print(elapsed_time("資料EDA", start_time))
 
         start_time = time.time()
-        topics_list = topic_summary(chain, data)  # step 5: 主題Topics總結
-        topic_list_sqg = topic_lsit_segment(ckip, topics_list, data_topic_info)  # step 6: 主題Topics總結斷詞
+        topics_summary_list = topic_summary(chain, data)  # step 5: 主題Topics總結
+        print("topics_summary_list:\n", topics_summary_list)
+        topic_list_sqg = topic_lsit_segment(ckip, topics_summary_list, data_topic_info)  # step 6: 主題Topics總結斷詞
+        print("topic_list_sqg:\n", topic_list_sqg)
         data_frame = content_and_topic_relation_eda(data_frame, topic_list_sqg)  # step 7: 分析 content(之後的chunk)接近哪些主題Topics
+        print("data_frame:\n", data_frame)
 
         print(elapsed_time("Topics總結", start_time))
         _ = pickle_save(SAVE_PATH + "data_rule.pkl", data_frame)
         print(f"Save Dataframe to Pickle succeeded at: {SAVE_PATH}")
         _ = pickle_save(SAVE_PATH + "data_ruletopic_info.pkl", data_topic_info)
         print(f"Save data_topic_info to Pickle succeeded at: {SAVE_PATH}")
-        _ = pickle_save(SAVE_PATH + "data_ruletopics_list.pkl", topics_list)
+        _ = pickle_save(SAVE_PATH + "data_ruletopics_list.pkl", topics_summary_list)
         print(f"Save topics_list to Pickle succeeded at: {SAVE_PATH}")
         print(f"** [{SAVE_NAME2}] 資料分析與檔案建置完成 ** \n")
 

@@ -787,142 +787,321 @@ class LDA_Category:
 """ 以下為 Create Ndoe Function"""
 
 def create_Node_Product(kg, data_frame):
-    node_count = 0
-    for product in rm_duplicate(data_frame["filename"].tolist()):
-        params = {'product': product}
-        _ = kg.query(PRODUCT_QUERY, params=params)
-        node_count += 1
-    print(f"Created {node_count} nodes")
+    """
+    在Neo4j圖數據庫中創建產品節點
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+        data_frame: 包含產品信息的DataFrame
+    
+    功能:
+        1. 從data_frame中提取不重複的產品名稱(文件名)
+        2. 為每個產品創建一個節點
+        3. 打印創建的節點數量
+    """
+    node_count = 0  # 初始化節點計數器
+    for product in rm_duplicate(data_frame["filename"].tolist()):  # 遍歷去重後的產品列表
+        params = {'product': product}  # 設置查詢參數
+        _ = kg.query(PRODUCT_QUERY, params=params)  # 執行Neo4j查詢創建產品節點
+        node_count += 1  # 節點計數增加
+    print(f"Created {node_count} nodes")  # 打印創建的節點數量
     return
 
-def create_Node_Topics(kg, topics_list): # 建立 TOPICS數據庫  將列表拆解為 DataFrame
+def create_Node_Topics(kg, topics_list): 
+    """
+    在Neo4j圖數據庫中創建主題節點
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+        topics_list: 包含主題信息的列表，格式為 "主題：描述" 或 "主題:描述" 或 "主題 描述"
+    
+    功能:
+        1. 將主題列表解析為主題和描述
+        2. 創建DataFrame存儲主題數據
+        3. 為每個主題創建一個節點
+        4. 打印創建的節點數量
+    """
+    # 初始化字典用於存儲主題和描述
     topics_dict = {'topic': [], 'description': []}
+    
+    # 遍歷主題列表，解析每個項目
     for item in topics_list:
-        if '：' in item:
+        if '：' in item:  # 處理中文冒號分隔的情況
             topic, description = item.split('：', 1)
-        elif ':' in item:
+        elif ':' in item:  # 處理英文冒號分隔的情況
             topic, description = item.split(':', 1)
-        else:
+        else:  # 處理空格分隔的情況
             topic, description = item.split(' ', 1)
+        
+        # 將解析後的主題和描述添加到字典中
         topics_dict['topic'].append(topic.strip())
         topics_dict['description'].append(description.strip())
+    
+    # 將字典轉換為DataFrame
     topics_datafrmae = pd.DataFrame(topics_dict)
-    # topics_datafrmae.head()
+    # topics_datafrmae.head()  # 用於調試時查看數據
+    
+    # 初始化節點計數器
     node_count = 0
+    
+    # 遍歷DataFrame中的每一行，創建主題節點
     for index, row in topics_datafrmae.iterrows():
+        # 設置查詢參數
         params = {'topic': row['topic'], 'description': row['description']}
+        # 執行Neo4j查詢創建主題節點
         _ = kg.query(TOPIC_QUERY, params=params)
+        # 節點計數增加
         node_count += 1
+    
+    # 打印創建的節點數量
     print(f"Created {node_count} nodes")
     return
 
 def create_Node_Chunks(kg, data_frame):
+    """
+    在Neo4j圖數據庫中創建內容塊節點
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+        data_frame: 包含內容塊數據的DataFrame
+    
+    功能:
+        1. 遍歷DataFrame中的每一行數據
+        2. 為每個內容塊創建一個節點
+        3. 打印創建的節點數量
+    """
+    # 初始化節點計數器
     node_count = 0
+    # 遍歷DataFrame中的每一行
     for index, row in data_frame.iterrows():
+        # 設置查詢參數，包含內容塊的各種屬性
         params = {
-                'content': row['content'], 
-                'filename': row['filename'],
-                'seg_list': row['seg_list'],
-                'topics': row['topics'],
-                'summary': row['summary'],
+                'content': row['content'],  # 內容文本
+                'filename': row['filename'],  # 來源文件名
+                'seg_list': row['seg_list'],  # 分詞列表
+                'topics': row['topics'],  # 相關主題
+                'summary': row['summary'],  # 內容摘要
                 }
+        # 執行Neo4j查詢創建內容塊節點
         _ = kg.query(CHUNK_QUERY, params=params)
+        # 節點計數增加
         node_count += 1
+    # 打印創建的節點數量
     print(f"Created {node_count} nodes")
     return
 
 def create_Relation_Tpoic_Chunks(kg):
+    """
+    在Neo4j圖數據庫中創建主題與內容塊之間的關係
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+    
+    功能:
+        執行預定義的查詢來建立主題和內容塊之間的關係
+    """
+    # 執行預定義的查詢，建立主題和內容塊之間的關係
     _= kg.query(RELATION_QUERY_TC)
     return
 
 def create_Relation_Product_Chunks(kg):
+    """
+    在Neo4j圖數據庫中創建產品與內容塊之間的關係
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+    
+    功能:
+        執行預定義的查詢來建立產品和內容塊之間的關係
+    """
+    # 執行預定義的查詢，建立產品和內容塊之間的關係
     _= kg.query(RELATION_QUERY_PC)
     return
 
 def create_VecotrIndex_content(kg, embeddings):
-
-    neo4j_vector_store = Neo4jVector.from_existing_graph(embedding=embeddings, 
-                                    url=NEO4J_URI, 
-                                    username=NEO4J_USERNAME, 
-                                    password=NEO4J_PASSWORD, 
-                                    database=NEO4J_DATABASE,
-                                    index_name="emb_index",
-                                    node_label='Chunk', 
-                                    embedding_node_property='contentEmbedding', 
-                                    text_node_properties=['content'])
+    """
+    為內容塊創建向量索引
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+        embeddings: 嵌入模型，用於生成文本的向量表示
+    
+    功能:
+        1. 從現有圖形創建Neo4j向量存儲
+        2. 刷新圖數據庫模式
+        3. 構建內容的向量索引
+        4. 顯示索引信息
+    """
+    # 從現有圖形創建Neo4j向量存儲，設置相關參數
+    neo4j_vector_store = Neo4jVector.from_existing_graph(
+                                    embedding=embeddings,  # 嵌入模型
+                                    url=NEO4J_URI,  # Neo4j數據庫URI
+                                    username=NEO4J_USERNAME,  # 用戶名
+                                    password=NEO4J_PASSWORD,  # 密碼
+                                    database=NEO4J_DATABASE,  # 數據庫名稱
+                                    index_name="emb_index",  # 索引名稱
+                                    node_label='Chunk',  # 節點標籤
+                                    embedding_node_property='contentEmbedding',  # 嵌入屬性名稱
+                                    text_node_properties=['content'])  # 文本屬性名稱
+    # 刷新圖數據庫模式
     _ = kg.refresh_schema()
+    # 打印圖數據庫模式
     print(kg.schema)
+    # 構建內容的向量索引
     _ = kg.query(BUILD_VECTOR_INDEX_CONTENT) 
+    # 顯示索引信息
     _ = kg.query(SHOWINDEX)
     return 
 
-def create_Node_RuleTopics(kg,topics_list):
-    # 建立 TOPICS數據庫: 
-    # 將列表拆解為 DataFrame
+def create_Node_RuleTopics(kg, topics_list):
+    """
+    在Neo4j圖數據庫中創建規則主題節點
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+        topics_list: 包含規則主題信息的列表
+    
+    功能:
+        1. 將主題列表解析為主題和描述
+        2. 創建DataFrame存儲主題數據
+        3. 為每個規則主題創建一個節點
+        4. 打印創建的節點數量
+    """
+    # 初始化字典用於存儲主題和描述
     topics_dict = {'topic': [], 'description': []}
+    # 遍歷主題列表，解析每個項目
     for item in topics_list:
-        if '：' in item:
+        if '：' in item:  # 處理中文冒號分隔的情況
             topic, description = item.split('：', 1)
-        elif ':' in item:
+        elif ':' in item:  # 處理英文冒號分隔的情況
             topic, description = item.split(':', 1)
-        elif ' ：' in item:
+        elif ' ：' in item:  # 處理帶空格的中文冒號分隔的情況
             topic, description = item.split(' ：', 1)
-        else:
+        else:  # 處理空格分隔的情況
             topic, description = item.split(' ', 1)
+        # 將解析後的主題和描述添加到字典中
         topics_dict['topic'].append(topic.strip())
         topics_dict['description'].append(description.strip())
+    # 將字典轉換為DataFrame
     topics_datafrmae = pd.DataFrame(topics_dict)
-    # topics_datafrmae.head()
+    # 初始化節點計數器
     node_count = 0
+    # 遍歷DataFrame中的每一行，創建規則主題節點
     for index, row in topics_datafrmae.iterrows():
+        # 設置查詢參數
         params = {'ruletopic': row['topic'], 'description': row['description']}
+        # 執行Neo4j查詢創建規則主題節點
         _ = kg.query(RULETOPIC_QUERY, params=params)
+        # 節點計數增加
         node_count += 1
+    # 打印創建的節點數量
     print(f"Created {node_count} nodes")
     return
 
-def create_Node_PageTable(kg,data_frame):
+def create_Node_PageTable(kg, data_frame):
+    """
+    在Neo4j圖數據庫中創建頁面表格節點
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+        data_frame: 包含頁面表格數據的DataFrame
+    
+    功能:
+        1. 為每行數據生成摘要
+        2. 為每個頁面表格創建一個節點
+        3. 打印創建的節點數量
+    """
+    # 初始化摘要列
     data_frame['summary'] = None
-    for index , str_data in enumerate(data_frame['content'].tolist()):
+    # 遍歷DataFrame中的每一行，生成摘要
+    for index, str_data in enumerate(data_frame['content'].tolist()):
+        # 將JSON字符串轉換為字典
         data = json.loads(str_data)
+        # 將字典轉換為格式化字符串
         formatted_string = dict_to_string(data)
-        data_frame.at[index,'summary'] = formatted_string
-    # data_frame.head()
+        # 將格式化字符串設置為摘要
+        data_frame.at[index, 'summary'] = formatted_string
+    
+    # 初始化節點計數器
     node_count = 0
+    # 遍歷DataFrame中的每一行，創建頁面表格節點
     for index, row in data_frame.iterrows():
+        # 設置查詢參數，包含頁面表格的各種屬性
         params = {
-                'content': row['content'], 
-                'filename': row['filename'],
-                'seg_list': row['seg_list'],
-                'topics': row['topics'],
-                'summary': row['summary'],
-                'page': row['page'],
+                'content': row['content'],  # 內容JSON
+                'filename': row['filename'],  # 來源文件名
+                'seg_list': row['seg_list'],  # 分詞列表
+                'topics': row['topics'],  # 相關主題
+                'summary': row['summary'],  # 內容摘要
+                'page': row['page'],  # 頁碼
                 }
+        # 執行Neo4j查詢創建頁面表格節點
         _ = kg.query(PAGETABLE_QUERY, params=params)
+        # 節點計數增加
         node_count += 1
+    # 打印創建的節點數量
     print((f"Created {node_count} nodes"))
     return 
 
 def create_Relation_RuleTpoic_Pagetable(kg):
+    """
+    在Neo4j圖數據庫中創建規則主題與頁面表格之間的關係
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+    
+    功能:
+        執行預定義的查詢來建立規則主題和頁面表格之間的關係
+    """
+    # 執行預定義的查詢，建立規則主題和頁面表格之間的關係
     _ = kg.query(RELATION_QUERY_RTPT)
     return
 
 def create_Relation_Product_Pagetable(kg):
+    """
+    在Neo4j圖數據庫中創建產品與頁面表格之間的關係
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+    
+    功能:
+        執行預定義的查詢來建立產品和頁面表格之間的關係
+    """
+    # 執行預定義的查詢，建立產品和頁面表格之間的關係
     _ = kg.query(RELATION_QUERY_PPT)
     return 
 
 def create_VecotrIndex_pagetable(kg, embeddings):
-    neo4j_vector_store = Neo4jVector.from_existing_graph(embedding=embeddings, 
-                                    url=NEO4J_URI, 
-                                    username=NEO4J_USERNAME, 
-                                    password=NEO4J_PASSWORD, 
-                                    database=NEO4J_DATABASE,
-                                    index_name="emb_index_rule",
-                                    node_label='PageTable', 
-                                    embedding_node_property='summaryEmbedding', 
-                                    text_node_properties=['summary'])
+    """
+    為頁面表格創建向量索引
+    
+    參數:
+        kg: Neo4jGraph對象，用於與Neo4j數據庫交互
+        embeddings: 嵌入模型，用於生成文本的向量表示
+    
+    功能:
+        1. 從現有圖形創建Neo4j向量存儲
+        2. 刷新圖數據庫模式
+        3. 構建頁面表格的向量索引
+        4. 顯示索引信息
+    """
+    # 從現有圖形創建Neo4j向量存儲，設置相關參數
+    neo4j_vector_store = Neo4jVector.from_existing_graph(
+                                    embedding=embeddings,  # 嵌入模型
+                                    url=NEO4J_URI,  # Neo4j數據庫URI
+                                    username=NEO4J_USERNAME,  # 用戶名
+                                    password=NEO4J_PASSWORD,  # 密碼
+                                    database=NEO4J_DATABASE,  # 數據庫名稱
+                                    index_name="emb_index_rule",  # 索引名稱
+                                    node_label='PageTable',  # 節點標籤
+                                    embedding_node_property='summaryEmbedding',  # 嵌入屬性名稱
+                                    text_node_properties=['summary'])  # 文本屬性名稱
+    # 刷新圖數據庫模式
     _ = kg.refresh_schema()
+    # 打印圖數據庫模式
     print(kg.schema)
+    # 構建頁面表格的向量索引
     _ = kg.query(BUILD_VECTOR_INDEX_PAGETABLE) 
+    # 顯示索引信息
     _ = kg.query(SHOWINDEX)
     return 
