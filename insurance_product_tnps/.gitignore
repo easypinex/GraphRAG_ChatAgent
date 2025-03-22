@@ -1,3 +1,4 @@
+# 因應原版程式的註解
 ckip_model/bert-base-chinese-ner
 ckip_model/bert-base-chinese-pos
 ckip_model/bert-base-chinese-ws
@@ -11,3 +12,13 @@ pdf/**/*.pdf
 pickles/**.pkl
 
 redis_data/dump.rdb
+
+# 改版後的註解
+**/ckip_package/bert-base-chinese-ner
+**/ckip_package/bert-base-chinese-pos
+**/ckip_package/bert-base-chinese-ws
+
+upload_files/policy_doc/*.pdf
+upload_files/underwriting_doc/*.pdf
+
+**Log**/
