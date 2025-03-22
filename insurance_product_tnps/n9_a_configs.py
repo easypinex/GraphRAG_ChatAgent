@@ -68,114 +68,130 @@ TOPIC_SUMMARY_PROMPT_BY_RULE = [
 """
         [Neo4j 操作]
 """
+# 刪除所有節點
 DELETE_ALL_NODES = """
-    MATCH (n)
-    DETACH DELETE n
+    MATCH (n)  # 匹配所有節點
+    DETACH DELETE n  # 刪除所有節點及其關聯的邊
 """
 
+# 刪除向量索引1，如果存在的話
 DELETE_ALL_VECTOR_INDEX1 ="""
-DROP INDEX emb_index IF EXISTS
+DROP INDEX emb_index IF EXISTS  # 刪除名為emb_index的索引，如果它存在
 """
 
+# 刪除向量索引2，如果存在的話
 DELETE_ALL_VECTOR_INDEX2 ="""
-DROP INDEX emb_index_rule IF EXISTS
+DROP INDEX emb_index_rule IF EXISTS  # 刪除名為emb_index_rule的索引，如果它存在
 """
 
+# 檢查節點是否已被清空
 CHECK_NODE_CLEANED ="""
-MATCH (n)
-RETURN COUNT(n) AS node_count
+MATCH (n)  # 匹配所有節點
+RETURN COUNT(n) AS node_count  # 返回當前節點的數量
 """
 
+# 顯示索引
 SHOWINDEX = """
-SHOW INDEX
+SHOW INDEX  # 顯示當前數據庫中的所有索引
 """ 
 
+# 創建或合併產品節點
 PRODUCT_QUERY = """
-MERGE(CreateProducts:Product {product: $product})
-RETURN CreateProducts
+MERGE(CreateProducts:Product {product: $product})  # 創建或合併一個產品節點
+RETURN CreateProducts  # 返回創建的產品節點
 """
 
+# 創建或合併主題節點
 TOPIC_QUERY = """
-MERGE(CreateTopics:Topic {topic: $topic})
+MERGE(CreateTopics:Topic {topic: $topic})  # 創建或合併一個主題節點
     ON CREATE SET 
-        CreateTopics.description = $description
-RETURN CreateTopics
+        CreateTopics.description = $description  # 如果創建，設置描述
+RETURN CreateTopics  # 返回創建的主題節點
 """
 
+# 創建或合併內容塊節點
 CHUNK_QUERY = """
-MERGE(CreateChunks:Chunk {content: $content})
+MERGE(CreateChunks:Chunk {content: $content})  # 創建或合併一個內容塊節點
     ON CREATE SET 
-        CreateChunks.filename = $filename,
-        CreateChunks.seg_list = $seg_list,
-        CreateChunks.topics = $topics,
-        CreateChunks.summary = $summary
-RETURN CreateChunks
+        CreateChunks.filename = $filename,  # 設置文件名
+        CreateChunks.seg_list = $seg_list,  # 設置分詞列表
+        CreateChunks.topics = $topics,  # 設置相關主題
+        CreateChunks.summary = $summary  # 設置內容摘要
+RETURN CreateChunks  # 返回創建的內容塊節點
 """
 
+# 創建主題與內容塊之間的關係
 RELATION_QUERY_TC = """
-MATCH (n)
-WHERE n.topics IS NOT NULL
-UNWIND n.topics AS topic
-MATCH (b:Topic {topic: topic})
-MERGE (n)-[:HAS_TOPIC]->(b)
+MATCH (n)  # 匹配所有節點
+WHERE n.topics IS NOT NULL  # 確保節點有主題
+UNWIND n.topics AS topic  # 展開主題列表
+MATCH (b:Topic {topic: topic})  # 匹配對應的主題節點
+MERGE (n)-[:HAS_TOPIC]->(b)  # 創建主題與內容塊之間的HAS_TOPIC關係
 """
 
+# 創建產品與內容塊之間的關係
 RELATION_QUERY_PC = """
-MATCH (n)
-WHERE n.filename IS NOT NULL
-UNWIND n.filename AS filename
-MATCH (b:Product {product: filename})
-MERGE (n)-[:FROM]->(b)
+MATCH (n)  # 匹配所有節點
+WHERE n.filename IS NOT NULL  # 確保節點有文件名
+UNWIND n.filename AS filename  # 展開文件名列表
+MATCH (b:Product {product: filename})  # 匹配對應的產品節點
+MERGE (n)-[:FROM]->(b)  # 創建產品與內容塊之間的FROM關係
 """
 
+# 創建內容塊的向量索引
 BUILD_VECTOR_INDEX_CONTENT = """
- CREATE VECTOR INDEX `emb_index` IF NOT EXISTS
- FOR (e:Chunk) ON (e.contentEmbedding)
+ CREATE VECTOR INDEX `emb_index` IF NOT EXISTS  # 如果不存在，創建名為emb_index的向量索引
+ FOR (e:Chunk) ON (e.contentEmbedding)  # 對Chunk節點的contentEmbedding屬性建立索引
   OPTIONS { indexConfig: {
-    `vector.dimensions`: 1536,
-    `vector.similarity_function`: 'cosine'    
+    `vector.dimensions`: 1536,  # 設置向量維度
+    `vector.similarity_function`: 'cosine'    # 設置相似度函數為餘弦相似度
  }}
 """
 
+# 創建或合併投保規則主題節點
 RULETOPIC_QUERY = """
-MERGE(CreateRuleTopics:RuleTopic {ruletopic: $ruletopic})
+MERGE(CreateRuleTopics:RuleTopic {ruletopic: $ruletopic})  # 創建或合併一個投保規則主題節點
     ON CREATE SET 
-        CreateRuleTopics.description = $description
-RETURN CreateRuleTopics
+        CreateRuleTopics.description = $description  # 如果創建，設置描述
+RETURN CreateRuleTopics  # 返回創建的投保規則主題節點
 """
 
+# 創建或合併頁面表節點
 PAGETABLE_QUERY = """
-MERGE(CreatePageTable:PageTable {content: $content})
+MERGE(CreatePageTable:PageTable {content: $content})  # 創建或合併一個頁面表節點
     ON CREATE SET 
-        CreatePageTable.filename = $filename,
-        CreatePageTable.seg_list = $seg_list,
-        CreatePageTable.ruletopics = $topics,
-        CreatePageTable.summary = $summary,
-        CreatePageTable.page = $page
-RETURN CreatePageTable
+        CreatePageTable.filename = $filename,  # 設置文件名
+        CreatePageTable.seg_list = $seg_list,  # 設置分詞列表
+        CreatePageTable.ruletopics = $topics,  # 設置相關投保規則主題
+        CreatePageTable.summary = $summary,  # 設置內容摘要
+        CreatePageTable.page = $page  # 設置頁碼
+RETURN CreatePageTable  # 返回創建的頁面表節點
 """
 
+# 創建投保規則主題與頁面表之間的關係
 RELATION_QUERY_RTPT = """
-MATCH (n:PageTable)
-WHERE n.ruletopics IS NOT NULL
-UNWIND n.ruletopics AS ruletopic
-MATCH (b:RuleTopic {ruletopic: ruletopic})
-MERGE (n)-[:HAS_RULETOPIC]->(b)
+MATCH (n:PageTable)  # 匹配所有頁面表節點
+WHERE n.ruletopics IS NOT NULL  # 確保頁面表有投保規則主題
+UNWIND n.ruletopics AS ruletopic  # 展開投保規則主題列表
+MATCH (b:RuleTopic {ruletopic: ruletopic})  # 匹配對應的投保規則主題節點
+MERGE (n)-[:HAS_RULETOPIC]->(b)  # 創建投保規則主題與頁面表之間的HAS_RULETOPIC關係
 """
 
+# 創建頁面表與產品之間的關係
 RELATION_QUERY_PPT = """
-MATCH (n:PageTable)
-WHERE n.filename IS NOT NULL
-UNWIND n.filename AS filename
-MATCH (b:Product {product: filename})
-MERGE (n)-[:FROM]->(b)
+MATCH (n:PageTable)  # 匹配所有頁面表節點
+WHERE n.filename IS NOT NULL  # 確保頁面表有文件名
+UNWIND n.filename AS filename  # 展開文件名列表
+MATCH (b:Product {product: filename})  # 匹配對應的產品節點
+MERGE (n)-[:FROM]->(b)  # 創建頁面表與產品之間的FROM關係
 """
 
+# 創建頁面表的向量索引
 BUILD_VECTOR_INDEX_PAGETABLE = """
- CREATE VECTOR INDEX `emb_index` IF NOT EXISTS
- FOR (e:Chunk) ON (e.contentEmbedding)
+ CREATE VECTOR INDEX `emb_index` IF NOT EXISTS  # 如果不存在，創建名為emb_index的向量索引
+ FOR (e:Chunk) ON (e.contentEmbedding)  # 對Chunk節點的contentEmbedding屬性建立索引
   OPTIONS { indexConfig: {
-    `vector.dimensions`: 1536,
-    `vector.similarity_function`: 'cosine'    
+    `vector.dimensions`: 1536,  # 設置向量維度
+    `vector.similarity_function`: 'cosine'    # 設置相似度函數為餘弦相似度
  }}
 """
