@@ -29,14 +29,12 @@ def main():
         )
         chain_type = "azure"
 
-    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-    print(f"Connecting to Redis at: {REDIS_URL}")
-
     prompt_template = ChatPromptTemplate.from_messages(TOPIC_SUMMARY_PROMPT)
     chain = prompt_template | llm
 
     start_time = time.time()
     data_frame = load_rule_pdf_to_dataframe(DEFAULT_PATH2)  # step 0: 先把資料轉pandas
+    
     ckip = Ckip(STOP_WORDS_PATH)
     if data_frame.empty:
         sys.exit("Dataframe 處理後為空值，請確認檔案路徑與檔案是否正確")
@@ -50,7 +48,7 @@ def main():
         print(elapsed_time("資料EDA", start_time))
 
         start_time = time.time()
-        topics_list = topic_summary(chain, data, chain_type)  # step 5: 主題Topics總結
+        topics_list = topic_summary(chain, data)  # step 5: 主題Topics總結
         topic_list_sqg = topic_lsit_segment(ckip, topics_list, data_topic_info)  # step 6: 主題Topics總結斷詞
         data_frame = content_and_topic_relation_eda(data_frame, topic_list_sqg)  # step 7: 分析 content(之後的chunk)接近哪些主題Topics
 
