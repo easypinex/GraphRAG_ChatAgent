@@ -1,5 +1,5 @@
 """
-        [客製設定]: 依照執行者位置目錄調整
+[客製設定]: 依照執行者位置目錄調整
 """
 STOP_WORDS_PATH = "./ckip_model/stopwords_TW.txt"
 DEFAULT_PATH = "./pdf/tnps/"
@@ -12,29 +12,29 @@ IMG_PATH = './html'
 # # cache_key = hashlib.sha1(blobpath.encode()).hexdigest()
 # # print(cache_key) # 9b5ad71b2ce5302211f9c61530b329a4922fc6a4
 CACHE_KEY = "9b5ad71b2ce5302211f9c61530b329a4922fc6a4"
-TIKTOKEN_CACHE_DIR = "/home/u004134/TestFolder/LLM_Soft/.tiktoken"
+TIKTOKEN_CACHE_DIR = "./.tiktoken"
 SAVE_NAME = "條款"
 SAVE_NAME2 = "投保規則"
 
 
 """
-        [固定設定]
+[固定設定]
 """
 AZURE_OPENAI_API_KEY = ""
-AZURE_OPENAI_API_VERSION ="2024-10-01-preview"
-AZURE_OPENAI_ENDPOINT = "https://twlife-azure-openai-dev.openai.azure.com/"
-AZURE_OPENAI_DEPLOYMENT_NAME = "gpt-4o" 
+AZURE_OPENAI_API_VERSION = "2024-10-01-preview"
+AZURE_OPENAI_ENDPOINT = "https://sales-chatbot-llm.openai.azure.com/"
+AZURE_OPENAI_DEPLOYMENT_NAME = "GPT4o" 
 
+AZURE_EMB_MODLE_API_KEY = ""
+AZURE_EMB_API_VERSION = "2024-02-01"
+AZURE_EMB_ENDPOINT = "https://sales-chatbot-llm.openai.azure.com/"
 AZURE_EMB_MODLE = 'text-embedding-3-small'
 AZURE_EMB_DEPLOYMENT = 'text-embedding-3-small'
-AZURE_EMB_ENDPOINT = "https://twlife-azure-openai-dev.openai.azure.com/"
-AZURE_EMB_API_VERSION = "2024-02-01" 
-AZURE_EMB_MODLE_API_KEY= ""
 
-NEO4J_URI="neo4j://localhost:7688"
-NEO4J_USERNAME="neo4j"
-NEO4J_PASSWORD="password"
-NEO4J_DATABASE="neo4j"
+NEO4J_URI = "neo4j://localhost:7688"
+NEO4J_USERNAME = "neo4j"
+NEO4J_PASSWORD = "password"
+NEO4J_DATABASE = "neo4j"
 
 PASSES = 10         #30  是訓練過程中使用語料庫的次數
 TOPIC_SETTING = 20  #20

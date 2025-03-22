@@ -5,23 +5,22 @@
 """
 
 RESPONSETHREDHOLD = 0.65
+
 AZURE_OPENAI_API_KEY = ""
-AZURE_OPENAI_API_VERSION ="2024-10-01-preview"
-AZURE_OPENAI_ENDPOINT = "https://twlife-azure-openai-dev.openai.azure.com/"
-AZURE_OPENAI_DEPLOYMENT_NAME = "gpt-4o" 
+AZURE_OPENAI_API_VERSION = "2024-10-01-preview"
+AZURE_OPENAI_ENDPOINT = "https://sales-chatbot-llm.openai.azure.com/"
+AZURE_OPENAI_DEPLOYMENT_NAME = "GPT4o" 
 
-NEO4J_URI="neo4j://localhost:7688"
-NEO4J_USERNAME="neo4j"
-NEO4J_PASSWORD="password"
-NEO4J_DATABASE="neo4j"
-
-
+AZURE_EMB_MODLE_API_KEY = ""
+AZURE_EMB_API_VERSION = "2024-02-01"
+AZURE_EMB_ENDPOINT = "https://sales-chatbot-llm.openai.azure.com/"
 AZURE_EMB_MODLE = 'text-embedding-3-small'
 AZURE_EMB_DEPLOYMENT = 'text-embedding-3-small'
-AZURE_EMB_ENDPOINT = "https://twlife-azure-openai-dev.openai.azure.com/"
-AZURE_EMB_API_VERSION = "2024-02-01" 
-AZURE_EMB_MODLE_API_KEY= ""
 
+NEO4J_URI = "neo4j://localhost:7688"
+NEO4J_USERNAME = "neo4j"
+NEO4J_PASSWORD = "password"
+NEO4J_DATABASE = "neo4j"
 
 """
 ============================================================
@@ -193,36 +192,3 @@ PROMPT_STEP3 =[
     
         ('user', 'input: \n\n {input}'),
     ]
-
-
-
-__all__ = [
-        'RESPONSETHREDHOLD',
-        'AZURE_OPENAI_API_KEY',
-        'AZURE_OPENAI_API_VERSION',
-        'AZURE_OPENAI_ENDPOINT',
-        'AZURE_OPENAI_DEPLOYMENT_NAME',
-        'NEO4J_URI',
-        'NEO4J_USERNAME',
-        'NEO4J_PASSWORD',
-        'NEO4J_DATABASE',
-        'AZURE_EMB_MODLE',
-        'AZURE_EMB_DEPLOYMENT',
-        'AZURE_EMB_ENDPOINT',
-        'AZURE_EMB_API_VERSION',
-        'AZURE_EMB_MODLE_API_KEY',
-
-
-        'QUERY_GET_FILENAME',
-        'QUERY_GET_TOPICS',
-        'QUERY_GET_RULETOPICS',
-        'VECTOR_SEARCH_BY_CHUNK',
-        'VECTOR_SEARCH_BY_PAGETABLE',
-        'VECTOR_SEARCH_BY_CHUNK_BLANKETSEARCH',
-        'COMBINE_QUERY',
-
-        'LLM_RAG_PROMPT',
-        'PROMPT_STEP1',
-        'PROMPT_STEP2',
-        'PROMPT_STEP3',
-           ]
