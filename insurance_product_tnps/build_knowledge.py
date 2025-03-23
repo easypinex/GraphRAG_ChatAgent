@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     todo_files = [
         # (f"{CUR_FILE_DIR}/upload_files/policy_doc/", "(排版)台灣人壽龍實在住院醫療健康保險附約.pdf", "policy"),
-        (f"{CUR_FILE_DIR}/upload_files/underwriting_doc/", "(排版)台灣人壽龍實在住院醫療健康保險附約.pdf", "underwriting"),
+        (f"{CUR_FILE_DIR}/upload_files/uw_doc/", "(排版)台灣人壽龍實在住院醫療健康保險附約.pdf", "uw"),
     ]
     for file_dir, file_name, file_type in todo_files:
         process_01_parse_content(file_dir, file_name, file_type)    

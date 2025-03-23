@@ -10,7 +10,7 @@ from ..general_package.utility import check_memory, save_json
 from ..ckip_package.ckip_module import ckip
 from ..dto_package.chunk import Chunk
 from .policy_process.policy_parser import parse_policy_content
-from .underwriting_process.underwriting_parser import parse_underwriting_content
+from .uw_process.uw_parser import parse_uw_content
 
 
 EXT = ".pdf"
@@ -25,8 +25,8 @@ def process_01_parse_content(file_dir, file_name, file_type):
         chunks: list[Chunk] = parse_policy_content(file_dir, file_name)
         for chunk in chunks:
             chunk.segment_list = ckip.process_flow(chunk.content)
-    elif file_type == "underwriting":
-        chunks: list[Chunk] = parse_underwriting_content(file_dir, file_name)
+    elif file_type == "uw":
+        chunks: list[Chunk] = parse_uw_content(file_dir, file_name)
         for chunk in chunks:
             chunk.segment_list = ckip.process_flow(chunk.summary)
     else:
@@ -37,10 +37,10 @@ def process_01_parse_content(file_dir, file_name, file_type):
     file_name_without_ext = file_name.replace(EXT, "")
     if file_type == "policy":
         save_json(chunks, f"{MINIO_CONTENT_PATH}/policy_doc/{file_name_without_ext}.json")
-    elif file_type == "underwriting":
-        save_json(chunks, f"{MINIO_CONTENT_PATH}/underwriting_doc/{file_name_without_ext}.json")
+    elif file_type == "uw":
+        save_json(chunks, f"{MINIO_CONTENT_PATH}/uw_doc/{file_name_without_ext}.json")
 
 def process_02_topic_analysis():
     # 把 policy_doc 的 json 全部一起做 topic analysis
-    # 把 underwriting_doc 的 json 全部一起做 topic analysis
+    # 把 uw_doc 的 json 全部一起做 topic analysis
     pass

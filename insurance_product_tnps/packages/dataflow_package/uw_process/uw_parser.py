@@ -11,7 +11,7 @@ from ...dto_package.chunk import Chunk
 LOGGER = logging.getLogger("TNPS")
 
 
-def parse_underwriting_content(file_dir: str, file_name: str):
+def parse_uw_content(file_dir: str, file_name: str):
     # 使用 pdfplumber 開啟指定的 PDF 檔案
     # pdf 物件的屬性包括：
     # - pages: 獲取 PDF 檔案中的所有頁面
@@ -47,7 +47,7 @@ def parse_underwriting_content(file_dir: str, file_name: str):
         # ]
         for table in tables:        
             table_content = json.dumps(table, ensure_ascii=False)
-            table_summary = summary_underwriting_content(table)
+            table_summary = summary_uw_content(table)
             ret_list.append(Chunk(
                 content=table_content,
                 filename=file_name,
@@ -57,7 +57,7 @@ def parse_underwriting_content(file_dir: str, file_name: str):
 
     return ret_list
 
-def summary_underwriting_content(table_rows: str):
+def summary_uw_content(table_rows: str):
     # 單純將表格的content串成一個str
     ret_str = ""
     for row in table_rows:

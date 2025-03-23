@@ -19,7 +19,7 @@ redis_data/dump.rdb
 **/ckip_package/bert-base-chinese-ws
 
 upload_files/policy_doc/*.pdf
-upload_files/underwriting_doc/*.pdf
+upload_files/uw_doc/*.pdf
 
 minio_simulate/**/*.json
 
