@@ -95,34 +95,50 @@ def policy_product_chunk_rule(pages):
     return match 
 
 def dict_to_string(data):
+    # 初始化一個空列表，用來儲存結果
     result = []
+    # 遍歷字典中的每個鍵值對
     for key, value in data.items():
+        # 遍歷每個子鍵值對
         for sub_key, sub_value in value.items():
+            # 檢查子值是否不為 None
             if sub_value is not None:
+                # 獲取標題，如果標題為空則使用預設值 "標題"
                 title = sub_value[0] if sub_value[0] else "標題"
+                # 將子值中的內容合併為一個字串，並以換行符號分隔
                 content = "\n".join([item for item in sub_value[1:] if item])
+                # 將標題和內容格式化後添加到結果列表中
                 result.append(f"{title}:\n{content}\n")
+    # 返回合併後的結果字串
     return "\n".join(result)
 
 def generate_response_for_query(chain, query_params):
+    # 從鏈中流式生成查詢的響應
     for r in chain.stream(query_params):
         yield r
 
 def pickle_save(SAVE_PATH, data):
+    # 將數據以二進制格式保存到指定路徑
     with open(SAVE_PATH, 'wb') as file:
         pickle.dump(data, file)
     return 
 
 def pickle_read(SAVE_PATH):
+    # 從指定路徑讀取二進制格式的數據
     with open(SAVE_PATH, 'rb') as file:
         data = pickle.load(file)
     return data
 
 def list_pdf_from_file_path(DEFAULT_PATH):
+    # 初始化一個空列表，用來儲存PDF檔案名稱
     pdf_names = []
+    # 遍歷指定路徑下的所有檔案
     for filename in os.listdir(DEFAULT_PATH):
+        # 檢查檔案是否以 '.pdf' 結尾
         if filename.endswith('.pdf'):
+            # 將符合條件的檔案名稱添加到列表中
             pdf_names.append(filename)
+    # 返回所有找到的PDF檔案名稱
     return pdf_names
 
 def pdf_to_pages(pdf_name):
@@ -614,25 +630,9 @@ def Confirm_EmbeddingToken_is_Working(TIKTOKEN_CACHE_DIR, CACHE_KEY,embeddings):
 
 class Ckip:  # step 2: 文章斷字斷詞
     def __init__(self, STOP_WORDS_PATH):
-    # 匯入停用詞
+        # 匯入停用詞
         with open(STOP_WORDS_PATH, "r", encoding="utf-8") as f:
             self.stopwords = [word.strip("\n") for word in f.readlines()]
-
-        """
-        離線下載: ( 先確認有: pip install huggingface_hub)
-        1. huggingface-cli login
-        2. huggingface-cli download --resume-download ckiplab/bert-base-chinese-ws --local-dir ./ckip_model/bert-base-chinese-ws
-        3. huggingface-cli download --resume-download ckiplab/bert-base-chinese-pos --local-dir ./ckip_model/bert-base-chinese-pos
-        4. huggingface-cli download --resume-download ckiplab/bert-base-chinese-ner --local-dir ./ckip_model/bert-base-chinese-ner
-        """
-        # # Initialize drivers(線上)
-        # print("Initializing drivers ... WS")
-        # ws_driver = CkipWordSegmenter(model="bert-base", device=0)
-        # print("Initializing drivers ... POS")
-        # pos_driver = CkipPosTagger(model="bert-base", device=0)
-        # print("Initializing drivers ... NER")
-        # ner_driver = CkipNerChunker(model="bert-base", device=0)
-        # print("Initializing drivers ... all done")
 
         ## Initialize drivers (離線) 
         device = 0 if torch.cuda.is_available() else -1 # 應對 MacOS 不能使用 CUDA 的問題

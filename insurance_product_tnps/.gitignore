@@ -21,4 +21,6 @@ redis_data/dump.rdb
 upload_files/policy_doc/*.pdf
 upload_files/underwriting_doc/*.pdf
 
+minio_simulate/**/*.json
+
 **Log**/

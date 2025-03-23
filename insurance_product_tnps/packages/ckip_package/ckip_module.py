@@ -1,5 +1,6 @@
 
 import os
+import re
 
 import torch
 from ckip_transformers.nlp import CkipWordSegmenter, CkipPosTagger, CkipNerChunker
@@ -65,6 +66,15 @@ class Ckip:  # step 2: 文章斷字斷詞
                 word_lst.append(str(ws))
             else:
                 pass
+        return word_lst
+    
+    def process_flow(self, content: str):
+        # 使用 CKIP 進行斷詞，範例輸出: ['這', '是', '一', '個', '範例']
+        ws_results = self.do_CKIP_WS(content)
+        # 使用 CKIP 進行詞性標註，範例輸出: [('這', '代名詞'), ('是', '動詞'), ('一', '數詞'), ('個', '量詞'), ('範例', '名詞')]
+        pos_results = self.do_CKIP_POS(ws_results)
+        # 清理斷詞結果，保留重要詞性的詞彙，範例輸出: ['這', '是', '範例']
+        word_lst = self.cleaner(ws_results, pos_results)
         return word_lst
 
 ckip = Ckip()
