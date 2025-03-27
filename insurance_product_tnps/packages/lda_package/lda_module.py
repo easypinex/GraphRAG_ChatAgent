@@ -1,12 +1,10 @@
 import logging
 from typing import List, Dict, Tuple, Any
+
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib
 from gensim import corpora
 from gensim.models.ldamodel import LdaModel
 from gensim.models.coherencemodel import CoherenceModel
-import pyLDAvis
 import pyLDAvis.gensim_models as pyLDAvis_gensim_models
 from langchain_core.prompts import ChatPromptTemplate
 from concurrent.futures import ThreadPoolExecutor
@@ -14,9 +12,10 @@ from functools import partial
 
 from ..dto_package.chunk import Chunk
 from ..general_package.utility import check_memory
-from ..llm_package.llm import llm_4o, llm_qwen, generate_response_for_query
+from ..llm_package.llm_module import LLM_4O, LLM_QWEN, generate_response_for_query
 from ..llm_package.prompt import TOPIC_SUMMARY_PROMPT
-from ..ckip_package.ckip_module import ckip
+from ..ckip_package.ckip_module import CKIP
+
 
 LOGGER = logging.getLogger("TNPS")
 MAX_TOPIC_NUMBER = 20
@@ -27,9 +26,10 @@ MAX_WORKERS = 4
 TOPIC_SIMILARITY_THRESHOLD = 0.55
 
 # 根據記憶體選擇LLM模型
-llm = llm_qwen if check_memory() else llm_4o
-prompt_template = ChatPromptTemplate.from_messages(TOPIC_SUMMARY_PROMPT)
-chain = prompt_template | llm
+LLM = LLM_QWEN if check_memory() else LLM_4O
+PROMPT_TEMPLATE = ChatPromptTemplate.from_messages(TOPIC_SUMMARY_PROMPT)
+CHAIN = PROMPT_TEMPLATE | LLM
+
 
 def create_dictionary_and_corpus(seg_lst: List[List[str]]) -> Tuple[corpora.Dictionary, List[List[Tuple[int, int]]]]:
     """
@@ -61,6 +61,7 @@ def create_dictionary_and_corpus(seg_lst: List[List[str]]) -> Tuple[corpora.Dict
         # 創建語料庫
         corpus = [dictionary.doc2bow(i) for i in seg_lst]
         return dictionary, corpus
+    
     except Exception as e:
         LOGGER.error(f"創建詞典和語料庫時發生錯誤: {str(e)}")
         raise
@@ -128,7 +129,7 @@ def process_topic_summaries(
     try:
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             # 創建部分函數，固定chain參數
-            process_func = partial(generate_response_for_query, chain)
+            process_func = partial(generate_response_for_query, CHAIN)
             # 並行處理所有主題
             topic_summary_dict = dict(
                 executor.map(
@@ -159,32 +160,38 @@ def analyze_chunk_topics(
         segment_list = list(set(chunk.segment_list))
         
         # 計算每個主題的命中次數
+        # hit_counts_per_topic: {1: 3, 2: 2, 3: 1}
         hit_counts_per_topic = {
             idx: len(set(segment_list) & set(summary_segment_list))
             for idx, summary_segment_list in topic_summary_segment_dict.items()
         }
         
-        # 轉換為DataFrame並排序
-        hit_counts_per_topic_df = pd.DataFrame(
-            list(hit_counts_per_topic.items()),
-            columns=['Topic', 'HitCount']
-        ).sort_values(by='HitCount', ascending=False)
+        # 將字典轉換為列表並排序
+        # sorted_topics: [(1, 3), (2, 2), (3, 1)]
+        sorted_topics = sorted(
+            hit_counts_per_topic.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
         
         # 計算閾值
-        total_hit_count = hit_counts_per_topic_df['HitCount'].sum()
+        # total_hit_count: 6
+        total_hit_count = sum(count for _, count in sorted_topics)
+        # threshold_value: 3
         threshold_value = max(total_hit_count * threshold, 1)
         
         # 累加計算達到閾值的主題
         cumulative_sum = 0
-        categories_reaching_threshold = []
-        for _, row in hit_counts_per_topic_df.iterrows():
-            cumulative_sum += row['HitCount']
-            categories_reaching_threshold.append(f"Topic{row['Topic']}")
+        topics_reaching_threshold = []
+        for topic, count in sorted_topics:
+            cumulative_sum += count
+            topics_reaching_threshold.append(topic)
             # 當累加的hit count達到閾值時，跳出迴圈
             if cumulative_sum >= threshold_value:
                 break
         
-        chunk.topic_list = categories_reaching_threshold
+        chunk.topic_list = topics_reaching_threshold
+
     except Exception as e:
         LOGGER.error(f"分析chunk主題時發生錯誤: {str(e)}")
         raise
@@ -209,7 +216,7 @@ def lda_analysis(all_file_chunks: List[Chunk]) -> Tuple[List[Chunk], Dict[int, s
         
         # 計算不同主題數量的一致性值
         topic_number_list = range(1, MAX_TOPIC_NUMBER + 1)
-        coherence_results = []
+        coherence_results = [] # [(coherence_value, lda_model)]
         
         for i in topic_number_list:
             coherence_value, lda_model = calculate_coherence(i, corpus, dictionary, seg_lst)
@@ -226,31 +233,66 @@ def lda_analysis(all_file_chunks: List[Chunk]) -> Tuple[List[Chunk], Dict[int, s
         # 使用最佳主題數量的LDA模型
         lda_model = coherence_results[best_num_of_topics_index][1]
         
-        # 準備可視化數據
+        # 準備LDA模型的可視化數據
+        #   pyLDAvis_gensim_models.prepare() 的 PreparedData 物件包含以下屬性：
+        #     1. `topic_info` (DataFrame): 包含每個主題的資訊，包括主題的索引、詞彙和其權重。
+        #         - `Term` (str): 詞彙的名稱。
+        #         - `Category` (str): 該詞彙所屬的類別，"Default" 或 "Topic1/2/3"，區分通用詞與主題詞。
+        #         - `Freq` (float): 該詞彙在主題中的頻率。
+        #         - `Total` (float): 該詞彙在所有文檔中的總頻率。
+        #         - `logprob` (float): 該詞彙的對數概率。
+        #         - `loglift` (float): 該詞彙的提升度，表示該詞彙在主題中的重要性。
+        #     2. `doc_info` (DataFrame): 包含每個文檔的資訊，包括文檔的索引和其對應的主題分佈。
+        #     3. `vector` (ndarray): 包含每個文檔的詞彙向量表示，通常是稀疏矩陣格式。
+        #     4. `mdsData` (DataFrame): 用於可視化的多維尺度分析結果，包含每個主題在二維空間中的坐標。
+        #     5. `doc_lengths` (ndarray): 每個文檔的長度，即文檔中詞彙的數量。
+        #     6. `term_frequency` (ndarray): 每個詞彙在所有文檔中的頻率。
         prepated_data = pyLDAvis_gensim_models.prepare(lda_model, corpus, dictionary)
         
         # 處理主題信息
         corpus_under_topic_df = prepated_data.topic_info[["Term", "Category"]]
         corpus_under_topic_df = corpus_under_topic_df[corpus_under_topic_df["Category"] != "Default"]
-        corpus_under_topic_df["Category_int"] = corpus_under_topic_df["Category"].str.extract(r'(\d+)').astype(int)
-        corpus_under_topic_df = corpus_under_topic_df.sort_values(by='Category_int')
+        corpus_under_topic_df["Category_num_str"] = corpus_under_topic_df["Category"].str.extract(r'(\d+)')
+        corpus_under_topic_df = corpus_under_topic_df.sort_values(by='Category_num_str')
         
         # 創建主題詞字典
-        corpus_under_topic_dict = corpus_under_topic_df.groupby('Category_int')['Term'].apply(list).to_dict()
+        # {
+        #     "1": ["主題詞1", "主題詞2", "主題詞3"],
+        #     "2": ["主題詞4", "主題詞5", "主題詞6"],
+        #     "3": ["主題詞7", "主題詞8", "主題詞9"]
+        # }
+        corpus_under_topic_dict = corpus_under_topic_df.groupby('Category_num_str')['Term'].apply(list).to_dict()
         LOGGER.info(f"主題詞字典: {corpus_under_topic_dict}")
         
         # 生成主題總結
+        # {
+        #     "1": "主題詞1、主題詞2、主題詞3的重點包括...",
+        #     "2": "主題詞4、主題詞5、主題詞6的重點包括...",
+        #     "3": "主題詞7、主題詞8、主題詞9的重點包括..."
+        # }
         topic_summary_dict = process_topic_summaries(corpus_under_topic_dict)
         LOGGER.info(f"主題總結字典: {topic_summary_dict}")
         
         # 對主題總結進行分詞
+        # {
+        #     "1": ["主題詞1", "主題詞2", "主題詞3", "重點", "包括", "..."],
+        #     "2": ["主題詞4", "主題詞5", "主題詞6", "重點", "包括", "..."],
+        #     "3": ["主題詞7", "主題詞8", "主題詞9", "重點", "包括", "..."]
+        # }
         topic_summary_segment_dict = {
-            key: ckip.process_flow(val)
+            key: CKIP.process_flow(val)
             for key, val in topic_summary_dict.items()
         }
         LOGGER.info(f"主題總結分詞字典: {topic_summary_segment_dict}")
         
-        # 分析每個chunk的主題
+        # 分析每個chunk所包含的主題
+        # [
+        #     Chunk(
+        #         ...,
+        #         topic_list=["1", "2", "3", ...]
+        #     ),
+        #     ...
+        # ]
         for chunk in all_file_chunks:
             analyze_chunk_topics(chunk, topic_summary_segment_dict)
         

@@ -1,13 +1,13 @@
 
 from langchain_ollama import OllamaLLM
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 
 from .llm_config import *
 
 OLLAMA_MODEL = "qwen2-72b-instruct"
-llm_qwen = OllamaLLM(model=OLLAMA_MODEL, temperature=0.0)
+LLM_QWEN = OllamaLLM(model=OLLAMA_MODEL, temperature=0.0)
 
-llm_4o = AzureChatOpenAI(
+LLM_4O = AzureChatOpenAI(
             azure_endpoint=AZURE_OPENAI_ENDPOINT,
             openai_api_version=AZURE_OPENAI_API_VERSION,
             model_name=AZURE_OPENAI_DEPLOYMENT_NAME,
@@ -15,6 +15,14 @@ llm_4o = AzureChatOpenAI(
             temperature=0.3,
             streaming=True,
         )
+
+EMB_MODEL = AzureOpenAIEmbeddings(
+    model=AZURE_EMB_MODLE,
+    azure_deployment=AZURE_EMB_DEPLOYMENT,
+    azure_endpoint=AZURE_EMB_ENDPOINT,
+    openai_api_version=AZURE_EMB_API_VERSION,
+    api_key=AZURE_EMB_MODLE_API_KEY,
+)
 
 def generate_response_for_query(chain, query_params):
     ret_str = ""

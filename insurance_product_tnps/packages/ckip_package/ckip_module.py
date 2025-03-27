@@ -77,4 +77,4 @@ class Ckip:  # step 2: 文章斷字斷詞
         word_lst = self.cleaner(ws_results, pos_results)
         return word_lst
 
-ckip = Ckip()
+CKIP = Ckip()
