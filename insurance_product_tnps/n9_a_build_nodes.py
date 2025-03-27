@@ -26,7 +26,6 @@ _ = kg.query(DELETE_ALL_VECTOR_INDEX2)
 nodes_count = kg.query(CHECK_NODE_CLEANED)
 print(f"*** 目前資料庫node數為: {nodes_count} *** \n")
 
-
 """=========================== 建立條款 Nodes ==========================="""
 data_frame = pickle_read(SAVE_PATH + "data.pkl")
 topics_list = pickle_read(SAVE_PATH + "data_topics_list.pkl")
@@ -37,7 +36,6 @@ create_Node_Chunks(kg, data_frame)
 create_Relation_Tpoic_Chunks(kg)
 create_Relation_Product_Chunks(kg)
 create_VecotrIndex_content(kg, embeddings)
-
 
 """===========================建立投保規則 Nodes ==========================="""
 data_frame = pickle_read(SAVE_PATH + "data_rule.pkl")
