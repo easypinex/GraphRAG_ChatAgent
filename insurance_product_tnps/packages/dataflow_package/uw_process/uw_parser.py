@@ -51,16 +51,39 @@ def parse_uw_content(file_dir: str, file_name: str):
             ret_list.append(Chunk(
                 content=table_content,
                 filename=file_name,
-                page=[page.page_number],
-                summary=table_summary
+                summary=table_summary,
+                page=page.page_number,
             ))
 
     return ret_list
 
 def summary_uw_content(table_rows: str):
+    """
+    table_rows 的格式為：
+    [
+        ["row1_1", "row1_2"], 
+        ["row2_1", "row2_2"],
+        ...
+    ]
+
+    輸出:
+    '''
+    row1_1: 
+    row1_2
+
+    row2_1:
+    row2_2
+    
+    ...
+    '''
+    """
     # 單純將表格的content串成一個str
     ret_str = ""
     for row in table_rows:
         filter_row = [cell for cell in row if (cell is not None and cell != "")]
-        ret_str += "".join(filter_row)
+        if len(filter_row) > 0:
+            ret_str += f"{filter_row[0]}:\n"
+        if len(filter_row) > 1:
+            ret_str += "\n".join(filter_row[1:])
+        ret_str += "\n\n"
     return ret_str

@@ -35,11 +35,11 @@ def parse_policy_content(file_dir: str, file_name: str):
 
     示例輸出：
     [
-        Chunk(content="前言內容", filename="xxx.pdf", page=[1]),
-        Chunk(content="【第一條】條文1內容", filename="xxx.pdf", page=[1]),
-        Chunk(content="【第二條】條文2內容", filename="xxx.pdf", page=[1]),
-        Chunk(content="附表1", filename="xxx.pdf", page=[1]),
-        Chunk(content="附表2內容", filename="xxx.pdf", page=[2])
+        Chunk(content="前言內容", filename="xxx.pdf", page=1),
+        Chunk(content="【第一條】條文1內容", filename="xxx.pdf", page=1),
+        Chunk(content="【第二條】條文2內容", filename="xxx.pdf", page=1),
+        Chunk(content="附表1", filename="xxx.pdf", page=1),
+        Chunk(content="附表2內容", filename="xxx.pdf", page=2)
     ]
     """
     # 讀取PDF文件
@@ -89,45 +89,42 @@ def parse_policy_content(file_dir: str, file_name: str):
     current_pos = 0
     # 建立頁面內容和頁碼的映射，用於後續追蹤每個chunk所在的頁碼
     # 例如：{1: "第一頁內容", 2: "第二頁內容", ...}
-    page_contents = {page.metadata["page"]: page.page_content for page in pages}
+    page_contents = {int(page.metadata["page"])+1: page.page_content for page in pages}
+    LOGGER.info(f"page_contents: {json.dumps(page_contents, indent=2, ensure_ascii=False)}")
     
     # 說明取得 chunk page nums 的做法
     # 理論上 all_chunks 只是 all_content 分段的結果, 兩者的內容是相同的
-    # 所以可以根據 chunk 開始跟結束位置 以及 每一頁的開始跟結束座標, 來判斷 chunk 有出現在哪些 page
+    # 所以可以根據 chunk 開始位置來判斷 chunk 所處的起點頁碼
     for chunk in all_chunks:
         # 取得本 chunk 起點在 all_content 中是第幾個 char
         # 從current_pos開始搜索，確保按順序處理每個chunk
         chunk_start = all_content.find(chunk, current_pos)
-        # 取得本 chunk 終點在 all_content 中是第幾個 char
-        chunk_end = chunk_start + len(chunk)
         # 更新current_pos為當前chunk的結束位置，用於下一個chunk的搜索
-        current_pos = chunk_end
+        current_pos = chunk_start + len(chunk)
         
-        # 用於存儲當前chunk跨越的所有頁碼
-        chunk_pages = []
+        # 用於存儲當前chunk所處的起點頁碼
+        chunk_page = None
         # 用於追蹤在完整文本中的當前位置
         current_pos_in_text = 0
         
-        # 遍歷每個頁面，確定chunk跨越了哪些頁面
+        # 遍歷每個頁面，確定chunk所處的起點頁碼
         for page_num, page_content in page_contents.items():
-            # 計算本頁面在 all_content 中起點跟終點是第幾個 char
+            # 計算本頁面在 all_content 中起點是第幾個 char
             page_start = current_pos_in_text
-            page_end = current_pos_in_text + len(page_content)
             
-            # 檢查chunk是否與當前頁面有重疊
-            # 如果chunk的起始位置小於頁面的結束位置，且chunk的結束位置大於頁面的起始位置
-            # 則表示chunk跨越了這個頁面
-            if (chunk_start < page_end and chunk_end > page_start):
-                chunk_pages.append(page_num)
+            # 檢查chunk的起始位置是否在當前頁面內
+            if chunk_start >= page_start and chunk_start < (page_start + len(page_content)):
+                chunk_page = page_num
+                break
             
             # 更新current_pos_in_text為當前頁面的結束位置
-            current_pos_in_text = page_end
+            current_pos_in_text += len(page_content)
         
-        # 創建新的Chunk對象，包含內容、文件名和所有相關頁碼
+        # 創建新的Chunk對象，包含內容、文件名和起點頁碼
         ret_list.append(Chunk(
             content=chunk,
             filename=file_name,
-            page=chunk_pages,
+            page=chunk_page,
             summary=summary_policy_content(chunk)
         ))
     

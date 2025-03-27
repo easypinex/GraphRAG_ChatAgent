@@ -6,7 +6,7 @@ class Chunk:
     content: str = ""
     filename: str = ""
     summary: str = ""
-    page: list[int] = field(default_factory=list)
+    page: int = -1
     segment_list: list[str] = field(default_factory=list)
     topic_list: list[str] = field(default_factory=list)
 
