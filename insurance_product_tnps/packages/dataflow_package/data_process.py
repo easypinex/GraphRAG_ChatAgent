@@ -22,14 +22,14 @@ MINIO_TOPIC_PATH = f"{CUR_FILE_PATH}/../../minio_simulate/topic"
 def process_01_parse_content(file_dir, file_name, file_type):
     if file_type == "policy":
         chunks: list[Chunk] = parse_policy_content(file_dir, file_name)
-        for chunk in chunks:
-            chunk.segment_list = CKIP.process_flow(chunk.content)
     elif file_type == "uw":
         chunks: list[Chunk] = parse_uw_content(file_dir, file_name)
-        for chunk in chunks:
-            chunk.segment_list = CKIP.process_flow(chunk.summary)
     else:
         raise ValueError(f"Invalid file type: {file_type}")
+
+    for chunk in chunks:
+        summary = chunk.summary.replace("\n", "")
+        chunk.segment_list = CKIP.process_flow(summary)
 
     LOGGER.info(f"chunks: {json.dumps(chunks, indent=2, ensure_ascii=False, default=lambda o: o.to_dict())}")
 
@@ -42,7 +42,6 @@ def process_01_parse_content(file_dir, file_name, file_type):
 def process_02_topic_analysis():
     # policy_doc 與 uw_doc 的 json 各自資料夾的所有 json 一起做 topic analysis
     for file_type in ["policy_doc", "uw_doc"]:
-        LOGGER.info(f"{file_type} topic analysis start")
         json_files = [f for f in os.listdir(f"{MINIO_CONTENT_PATH}/{file_type}") if f.endswith(".json")]
 
         chunk_topic_analysis = []
@@ -53,9 +52,9 @@ def process_02_topic_analysis():
 
                 chunk_topic_analysis.extend(chunks)
 
-        chunk_topic_analysis, topic_summary_dict = lda_analysis(chunk_topic_analysis)
-        LOGGER.info(f"chunk_topic_analysis: {json.dumps(chunk_topic_analysis, indent=2, ensure_ascii=False, default=lambda o: o.to_dict())}")
-        LOGGER.info(f"topic_summary_dict: {json.dumps(topic_summary_dict, indent=2, ensure_ascii=False, default=lambda o: o.to_dict())}")
+        chunk_topic_analysis, topic_summary_dict = lda_analysis(chunk_topic_analysis, file_type)
+        LOGGER.info(f"[{file_type}] chunk_topic_analysis: {json.dumps(chunk_topic_analysis, indent=2, ensure_ascii=False, default=lambda o: o.to_dict())}")
+        LOGGER.info(f"[{file_type}] topic_summary_dict: {json.dumps(topic_summary_dict, indent=2, ensure_ascii=False, default=lambda o: o.to_dict())}")
         
         save_json(chunk_topic_analysis, f"{MINIO_TOPIC_PATH}/{file_type}/chunk_topic_analysis.json")
         save_json(topic_summary_dict, f"{MINIO_TOPIC_PATH}/{file_type}/topic_summary.json")

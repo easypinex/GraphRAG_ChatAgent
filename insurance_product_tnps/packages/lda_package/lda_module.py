@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import List, Dict, Tuple, Any
 
@@ -56,14 +57,14 @@ def create_dictionary_and_corpus(seg_lst: List[List[str]]) -> Tuple[corpora.Dict
     try:
         # 創建詞典，過濾掉出現次數過少或過多的詞
         dictionary = corpora.Dictionary(seg_lst)
-        # 過濾掉只出現一次的詞
-        dictionary.filter_extremes(no_below=2, no_above=0.5)
+        # # 過濾掉只出現一次的詞
+        # dictionary.filter_extremes(no_below=2, no_above=0.5)
         # 創建語料庫
         corpus = [dictionary.doc2bow(i) for i in seg_lst]
         return dictionary, corpus
     
     except Exception as e:
-        LOGGER.error(f"創建詞典和語料庫時發生錯誤: {str(e)}")
+        LOGGER.error(f"create dictionary and corpus error: {str(e)}")
         raise
 
 def calculate_coherence(
@@ -102,7 +103,7 @@ def calculate_coherence(
         )
         return ldacm.get_coherence(), lda_model
     except Exception as e:
-        LOGGER.error(f"計算一致性值時發生錯誤: {str(e)}")
+        LOGGER.error(f"calculate coherence error: {str(e)}")
         raise
 
 def process_topic_summaries(
@@ -139,7 +140,7 @@ def process_topic_summaries(
             )
         return topic_summary_dict
     except Exception as e:
-        LOGGER.error(f"處理主題總結時發生錯誤: {str(e)}")
+        LOGGER.error(f"process topic summaries error: {str(e)}")
         raise
 
 def analyze_chunk_topics(
@@ -193,10 +194,10 @@ def analyze_chunk_topics(
         chunk.topic_list = topics_reaching_threshold
 
     except Exception as e:
-        LOGGER.error(f"分析chunk主題時發生錯誤: {str(e)}")
+        LOGGER.error(f"analyze chunk topics error: {str(e)}")
         raise
 
-def lda_analysis(all_file_chunks: List[Chunk]) -> Tuple[List[Chunk], Dict[int, str]]:
+def lda_analysis(all_file_chunks: List[Chunk], file_type: str) -> Tuple[List[Chunk], Dict[int, str]]:
     """
     執行LDA主題分析
     
@@ -221,14 +222,33 @@ def lda_analysis(all_file_chunks: List[Chunk]) -> Tuple[List[Chunk], Dict[int, s
         for i in topic_number_list:
             coherence_value, lda_model = calculate_coherence(i, corpus, dictionary, seg_lst)
             coherence_results.append((coherence_value, lda_model))
+        # coherence_results 示例：
+        # [(0.5, lda_model1), (0.6, lda_model2), (0.4, lda_model3), (0.7, lda_model4), (0.3, lda_model5), ...]
+        # 其中每个元素是一个元组 (coherence_value, lda_model)
         
-        # 獲取最佳主題數量
-        best_num_of_topics_index = max(
-            range(len(coherence_results)),
-            key=lambda i: coherence_results[i][0]
-        )
+        coherence = [value for value, model in coherence_results]
+
+        coherence_log = {i+1: value for i, value in enumerate(coherence)}
+        LOGGER.info(f"[{file_type}] topic_num vs. coherence_value: {json.dumps(coherence_log, indent=2, ensure_ascii=False)}")
+
+        # 获取前5个最佳一致性值的索引
+        # 例如：如果 coherence_results 为 [(0.5, m1), (0.6, m2), (0.4, m3), (0.7, m4), (0.3, m5)]
+        # 则 top_5_indices 可能为 [3, 1, 0, 2, 4]
+        # 因为：
+        # - coherence_results[3][0] = 0.7 (最大)
+        # - coherence_results[1][0] = 0.6 (第二)
+        # - coherence_results[0][0] = 0.5 (第三)
+        # - coherence_results[2][0] = 0.4 (第四)
+        # - coherence_results[4][0] = 0.3 (第五)
+        top_5_indices = sorted(range(len(coherence_results)), key=lambda i: coherence_results[i][0], reverse=True)[:5]
+
+        coherence_value_log = {index+1: coherence_results[index][0] for index in top_5_indices}
+        LOGGER.info(f"[{file_type}] top 5 coherence value: {json.dumps(coherence_value_log, indent=2, ensure_ascii=False)}")
+
+        # 在前5個中選擇主題數量最大的數值
+        best_num_of_topics_index = sorted(top_5_indices, reverse=True)[0]  # 直接取前五個中索引值最大的
         best_num_of_topics = topic_number_list[best_num_of_topics_index]
-        LOGGER.info(f"最佳主題數量: {best_num_of_topics}")
+        LOGGER.info(f"[{file_type}] best_num_of_topics: {best_num_of_topics}, coherence_value: {coherence_results[best_num_of_topics_index][0]}")
         
         # 使用最佳主題數量的LDA模型
         lda_model = coherence_results[best_num_of_topics_index][1]
@@ -248,7 +268,7 @@ def lda_analysis(all_file_chunks: List[Chunk]) -> Tuple[List[Chunk], Dict[int, s
         #     5. `doc_lengths` (ndarray): 每個文檔的長度，即文檔中詞彙的數量。
         #     6. `term_frequency` (ndarray): 每個詞彙在所有文檔中的頻率。
         prepated_data = pyLDAvis_gensim_models.prepare(lda_model, corpus, dictionary)
-        
+
         # 處理主題信息
         corpus_under_topic_df = prepated_data.topic_info[["Term", "Category"]]
         corpus_under_topic_df = corpus_under_topic_df[corpus_under_topic_df["Category"] != "Default"]
@@ -262,7 +282,7 @@ def lda_analysis(all_file_chunks: List[Chunk]) -> Tuple[List[Chunk], Dict[int, s
         #     "3": ["主題詞7", "主題詞8", "主題詞9"]
         # }
         corpus_under_topic_dict = corpus_under_topic_df.groupby('Category_num_str')['Term'].apply(list).to_dict()
-        LOGGER.info(f"主題詞字典: {corpus_under_topic_dict}")
+        LOGGER.info(f"[{file_type}] corpus_under_topic_dict: {json.dumps(corpus_under_topic_dict, indent=2, ensure_ascii=False)}")
         
         # 生成主題總結
         # {
@@ -271,7 +291,7 @@ def lda_analysis(all_file_chunks: List[Chunk]) -> Tuple[List[Chunk], Dict[int, s
         #     "3": "主題詞7、主題詞8、主題詞9的重點包括..."
         # }
         topic_summary_dict = process_topic_summaries(corpus_under_topic_dict)
-        LOGGER.info(f"主題總結字典: {topic_summary_dict}")
+        LOGGER.info(f"[{file_type}] topic_summary_dict: {json.dumps(topic_summary_dict, indent=2, ensure_ascii=False)}")
         
         # 對主題總結進行分詞
         # {
@@ -283,7 +303,7 @@ def lda_analysis(all_file_chunks: List[Chunk]) -> Tuple[List[Chunk], Dict[int, s
             key: CKIP.process_flow(val)
             for key, val in topic_summary_dict.items()
         }
-        LOGGER.info(f"主題總結分詞字典: {topic_summary_segment_dict}")
+        LOGGER.info(f"[{file_type}] topic_summary_segment_dict: {json.dumps(topic_summary_segment_dict, indent=2, ensure_ascii=False)}")
         
         # 分析每個chunk所包含的主題
         # [
@@ -299,5 +319,5 @@ def lda_analysis(all_file_chunks: List[Chunk]) -> Tuple[List[Chunk], Dict[int, s
         return all_file_chunks, topic_summary_dict
         
     except Exception as e:
-        LOGGER.error(f"LDA分析過程中發生錯誤: {str(e)}")
+        LOGGER.error(f"[{file_type}] LDA analysis error: {str(e)}")
         raise

@@ -6,11 +6,14 @@ import torch
 from ckip_transformers.nlp import CkipWordSegmenter, CkipPosTagger, CkipNerChunker
 
 
+CUR_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+STOP_WORDS_PATH = f"{CUR_FILE_DIR}/stopwords_TW.txt"
+
+
 class Ckip:  # step 2: 文章斷字斷詞
     def __init__(self):
         # 匯入停用詞
-        dir_path = os.path.dirname(os.path.abspath(__file__))
-        with open(f"{dir_path}/stopwords_TW.txt", "r", encoding="utf-8") as f:
+        with open(STOP_WORDS_PATH, "r", encoding="utf-8") as f:
             self.stopwords = [word.strip("\n") for word in f.readlines()]
 
         ## Initialize drivers (離線) 
